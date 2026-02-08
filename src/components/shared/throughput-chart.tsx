@@ -41,8 +41,8 @@ export function ThroughputChart({ data }: ThroughputChartProps) {
       <AreaChart data={chartData}>
         <defs>
           <linearGradient id="cpmGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="5%" stopColor="#a78bfa" stopOpacity={0.3} />
-            <stop offset="95%" stopColor="#a78bfa" stopOpacity={0} />
+            <stop offset="5%" stopColor="#6D45FF" stopOpacity={0.3} />
+            <stop offset="95%" stopColor="#6D45FF" stopOpacity={0} />
           </linearGradient>
         </defs>
         <XAxis
@@ -69,7 +69,7 @@ export function ThroughputChart({ data }: ThroughputChartProps) {
         <Area
           type="monotone"
           dataKey="cpm"
-          stroke="#a78bfa"
+          stroke="#6D45FF"
           fill="url(#cpmGrad)"
           strokeWidth={2}
           name="Comp/min"

@@ -6,7 +6,7 @@ import { useComputations } from "@/lib/hooks/use-api";
 const STATUS_COLORS_HEX = {
   queued: "#4ade80",
   executing: "#fbbf24",
-  finalized: "#a78bfa",
+  finalized: "#6D45FF",
   failed: "#f87171",
 };
 

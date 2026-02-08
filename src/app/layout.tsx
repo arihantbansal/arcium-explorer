@@ -1,19 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import { Suspense } from "react";
 import { Providers } from "@/components/providers";
 import { Header } from "@/components/layout/header";
 import { Footer } from "@/components/layout/footer";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
+const aeonik = localFont({
+  src: [
+    { path: "../fonts/AeonikPro-Light.otf", weight: "300", style: "normal" },
+    { path: "../fonts/AeonikPro-Regular.otf", weight: "400", style: "normal" },
+    { path: "../fonts/AeonikPro-Medium.otf", weight: "500", style: "normal" },
+    { path: "../fonts/AeonikPro-Bold.otf", weight: "700", style: "normal" },
+  ],
+  variable: "--font-aeonik",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+const dotMatrix = localFont({
+  src: "../fonts/DotMatrixTwo.ttf",
+  variable: "--font-dot-matrix",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -24,6 +31,9 @@ export const metadata: Metadata = {
   description:
     "Explore the Arcium MPC network — confidential computations, clusters, ARX nodes, and execution environments on Solana.",
   keywords: ["Arcium", "MPC", "Solana", "Explorer", "Confidential Computing"],
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
@@ -34,7 +44,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen flex flex-col`}
+        className={`${aeonik.variable} ${dotMatrix.variable} antialiased min-h-screen flex flex-col`}
       >
         <Providers>
           <Suspense>

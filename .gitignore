@@ -41,3 +41,7 @@ next-env.d.ts
 
 # ref folder (project-specific docs, not for git)
 /ref/
+
+# raw brand assets (originals — processed versions live in public/ and src/fonts/)
+/Logos/
+/Fonts/

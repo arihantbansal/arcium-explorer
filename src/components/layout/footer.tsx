@@ -1,13 +1,18 @@
 import Link from "next/link";
+import Image from "next/image";
 
 export function Footer() {
   return (
     <footer className="border-t border-border-primary bg-bg-surface">
       <div className="mx-auto flex max-w-screen-2xl flex-col items-center justify-between gap-4 px-4 py-6 sm:flex-row">
         <div className="flex items-center gap-2 text-sm text-text-muted">
-          <div className="flex h-5 w-5 items-center justify-center rounded bg-accent-arcium/20">
-            <span className="text-[10px] font-bold text-accent-arcium">A</span>
-          </div>
+          <Image
+            src="/logos/logomark.svg"
+            alt="Arcium"
+            width={20}
+            height={14}
+            className="h-3.5 w-auto"
+          />
           <span>Arcium Explorer</span>
         </div>
         <div className="flex items-center gap-4 text-xs text-text-muted">

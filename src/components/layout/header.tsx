@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
@@ -70,9 +71,13 @@ export function Header() {
             href={`/?network=${network}`}
             className="flex items-center gap-2 font-semibold text-text-primary"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-accent-arcium/20">
-              <span className="text-sm font-bold text-accent-arcium">A</span>
-            </div>
+            <Image
+              src="/logos/logomark.svg"
+              alt="Arcium"
+              width={28}
+              height={20}
+              className="h-5 w-auto"
+            />
             <span className="hidden sm:inline">Arcium Explorer</span>
           </Link>
 
