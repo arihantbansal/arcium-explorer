@@ -121,6 +121,16 @@ async function main(): Promise<void> {
   process.on("SIGTERM", shutdown);
 }
 
+// Handle unhandled promise rejections from gRPC NAPI binding (channel closed on GC)
+process.on("unhandledRejection", (reason) => {
+  const msg = reason instanceof Error ? reason.message : String(reason);
+  if (msg.includes("channel closed")) {
+    log.debug("gRPC channel closed (expected during reconnect)", { error: msg });
+    return;
+  }
+  log.error("Unhandled promise rejection", { error: msg });
+});
+
 main().catch((error) => {
   log.error("Worker failed to start", {
     error: error instanceof Error ? error.message : String(error),

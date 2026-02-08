@@ -15,6 +15,13 @@
       "when": 1770565860500,
       "tag": "0001_great_wrecker",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770575562419,
+      "tag": "0002_flat_dakota_north",
+      "breakpoints": true
     }
   ]
 }
