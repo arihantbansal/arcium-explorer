@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+:root {
+  /* Arcium Explorer Dark Theme — mempool.space inspired */
+  --bg-primary: #1d1f31;
+  --bg-surface: #24273a;
+  --bg-elevated: #2a2d42;
+  --border-primary: #363a54;
+  --border-muted: #2e3148;
+
+  /* Status colors */
+  --status-queued: #4ade80;
+  --status-executing: #fbbf24;
+  --status-finalized: #a78bfa;
+  --status-failed: #f87171;
+
+  /* Text */
+  --text-primary: #e8e8f0;
+  --text-secondary: #8b8fa3;
+  --text-muted: #6b6f85;
+
+  /* Accent */
+  --accent-link: #60a5fa;
+  --accent-arcium: #a78bfa;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+
+  /* Background / Foreground for Tailwind compatibility */
+  --background: #1d1f31;
+  --foreground: #e8e8f0;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-border-primary: var(--border-primary);
+  --color-border-muted: var(--border-muted);
+  --color-status-queued: var(--status-queued);
+  --color-status-executing: var(--status-executing);
+  --color-status-finalized: var(--status-finalized);
+  --color-status-failed: var(--status-failed);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-accent-link: var(--accent-link);
+  --color-accent-arcium: var(--accent-arcium);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+}
+
+/* Custom scrollbar for dark theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-primary);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+/* Selection */
+::selection {
+  background: rgba(167, 139, 250, 0.3);
+  color: var(--text-primary);
+}

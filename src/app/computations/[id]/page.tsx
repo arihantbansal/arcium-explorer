@@ -1,0 +1,187 @@
+"use client";
+
+import { Suspense } from "react";
+import { useParams } from "next/navigation";
+import { useComputation } from "@/lib/hooks/use-api";
+import { useNetwork } from "@/lib/hooks/use-network";
+import { StatusBadge } from "@/components/shared/status-badge";
+import { AddressDisplay } from "@/components/shared/address-display";
+import { formatTimestamp } from "@/lib/utils";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import type { ComputationStatus } from "@/types";
+
+const LIFECYCLE_STEPS: { key: string; label: string; status: ComputationStatus }[] = [
+  { key: "queuedAt", label: "Queued", status: "queued" },
+  { key: "executingAt", label: "Executing", status: "executing" },
+  { key: "finalizedAt", label: "Finalized", status: "finalized" },
+];
+
+function ComputationDetailContent() {
+  const params = useParams();
+  const network = useNetwork();
+  const id = params.id as string;
+  const { data: response, isLoading } = useComputation(id);
+  const comp = response?.data as Record<string, unknown> | undefined;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Loading computation...
+      </div>
+    );
+  }
+
+  if (!comp) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Computation not found
+      </div>
+    );
+  }
+
+  const status = comp.status as ComputationStatus;
+
+  return (
+    <div className="mx-auto max-w-screen-2xl px-4 py-6 space-y-6">
+      <div className="flex items-center gap-3">
+        <Link
+          href={`/computations?network=${network}`}
+          className="text-sm text-text-muted hover:text-text-secondary"
+        >
+          Computations
+        </Link>
+        <span className="text-text-muted">/</span>
+        <h1 className="text-xl font-semibold text-text-primary">
+          Computation
+        </h1>
+        <StatusBadge status={status} />
+      </div>
+
+      {/* Lifecycle timeline */}
+      <div className="rounded-lg border border-border-primary bg-bg-surface p-4">
+        <h2 className="mb-4 text-sm font-medium text-text-secondary">
+          Lifecycle
+        </h2>
+        <div className="flex items-center gap-0">
+          {LIFECYCLE_STEPS.map((step, i) => {
+            const timestamp = comp[step.key] as string | null;
+            const isCompleted = !!timestamp;
+            const isCurrent = status === step.status;
+            const isFailed = status === "failed" && !isCompleted;
+
+            return (
+              <div key={step.key} className="flex items-center flex-1">
+                <div className="flex flex-col items-center gap-2 flex-1">
+                  <div
+                    className={cn(
+                      "flex h-10 w-10 items-center justify-center rounded-full border-2 transition-colors",
+                      isCompleted
+                        ? "border-status-finalized bg-status-finalized/20"
+                        : isCurrent
+                        ? "border-status-executing bg-status-executing/20 animate-pulse"
+                        : isFailed
+                        ? "border-status-failed bg-status-failed/20"
+                        : "border-border-primary bg-bg-elevated"
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        "text-xs font-medium",
+                        isCompleted
+                          ? "text-status-finalized"
+                          : isCurrent
+                          ? "text-status-executing"
+                          : "text-text-muted"
+                      )}
+                    >
+                      {i + 1}
+                    </span>
+                  </div>
+                  <span className="text-xs text-text-secondary">{step.label}</span>
+                  {timestamp && (
+                    <span className="text-[10px] text-text-muted">
+                      {formatTimestamp(timestamp)}
+                    </span>
+                  )}
+                </div>
+                {i < LIFECYCLE_STEPS.length - 1 && (
+                  <div
+                    className={cn(
+                      "h-0.5 flex-1 mx-2",
+                      isCompleted ? "bg-status-finalized" : "bg-border-primary"
+                    )}
+                  />
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Details */}
+      <div className="rounded-lg border border-border-primary bg-bg-surface p-4 space-y-3">
+        <h2 className="text-sm font-medium text-text-secondary">Details</h2>
+        <div className="grid gap-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-text-muted">Address</span>
+            <AddressDisplay
+              address={String(comp.address)}
+              truncate={false}
+              showExternalLink
+              solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"}
+            />
+          </div>
+          <div className="flex justify-between">
+            <span className="text-text-muted">Computation Offset</span>
+            <span className="font-mono text-xs">{String(comp.computationOffset)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-text-muted">Cluster</span>
+            <Link
+              href={`/clusters/${comp.clusterOffset}?network=${network}`}
+              className="font-mono text-accent-link hover:underline"
+            >
+              {String(comp.clusterOffset)}
+            </Link>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-text-muted">Payer</span>
+            <AddressDisplay address={String(comp.payer)} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+          </div>
+          {!!comp.mxeProgramId && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">Program</span>
+              <Link
+                href={`/programs/${comp.mxeProgramId}?network=${network}`}
+                className="text-accent-link hover:underline"
+              >
+                <AddressDisplay address={String(comp.mxeProgramId)} showCopy={false} />
+              </Link>
+            </div>
+          )}
+          {!!comp.queueTxSig && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">Queue TX</span>
+              <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+            </div>
+          )}
+          {!!comp.finalizeTxSig && (
+            <div className="flex justify-between">
+              <span className="text-text-muted">Finalize TX</span>
+              <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ComputationDetailPage() {
+  return (
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+      <ComputationDetailContent />
+    </Suspense>
+  );
+}
