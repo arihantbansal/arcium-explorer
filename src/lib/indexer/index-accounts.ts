@@ -24,7 +24,6 @@ export async function indexClusters(network: Network): Promise<number> {
   for (const { pubkey, account } of accounts) {
     const parsed = parseClusterAccount(account.data);
     if (!parsed) continue;
-    if (parsed.clusterSize === 0 && parsed.nodeOffsets.length === 0) continue;
 
     await upsertCluster(pubkey.toBase58(), parsed, network);
     indexed++;

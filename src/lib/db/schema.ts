@@ -41,7 +41,7 @@ export const clusters = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("clusters_offset_network_idx").on(table.offset, table.network),
+    uniqueIndex("clusters_address_network_idx").on(table.address, table.network),
     index("clusters_network_idx").on(table.network),
     index("clusters_active_idx").on(table.isActive, table.network),
   ]
@@ -68,7 +68,7 @@ export const arxNodes = pgTable(
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
   (table) => [
-    uniqueIndex("arx_nodes_offset_network_idx").on(table.offset, table.network),
+    uniqueIndex("arx_nodes_address_network_idx").on(table.address, table.network),
     index("arx_nodes_network_idx").on(table.network),
     index("arx_nodes_cluster_idx").on(table.clusterOffset, table.network),
     index("arx_nodes_active_idx").on(table.isActive, table.network),

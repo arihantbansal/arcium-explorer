@@ -11,7 +11,7 @@ const ENABLE_DEVNET = process.env.ENABLE_DEVNET !== "false";
 
 const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL || "https://poc-rpc.layer33.com";
 const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com";
-const MAINNET_GRPC_ENDPOINT = process.env.MAINNET_GRPC_ENDPOINT || "poc-rpc.layer33.com:10000";
+const MAINNET_GRPC_ENDPOINT = process.env.MAINNET_GRPC_ENDPOINT || "https://poc-rpc.layer33.com:10000";
 const MAINNET_GRPC_TOKEN = process.env.MAINNET_GRPC_TOKEN || undefined;
 
 const DEVNET_POLL_INTERVAL = 30_000;         // 30s

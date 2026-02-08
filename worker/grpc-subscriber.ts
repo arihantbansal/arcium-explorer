@@ -7,6 +7,12 @@ import { PublicKey } from "@solana/web3.js";
 
 const log = createLogger("grpc");
 
+// Known proto deserialization error for large slot numbers.
+// The NAPI binding in @triton-one/yellowstone-grpc v5 deserializes
+// slot as i32 but mainnet slots exceed i32 range (~1.77 trillion).
+// This error is non-fatal — reconnect immediately.
+const SLOT_OVERFLOW_PATTERN = /expected i32/;
+
 export interface GrpcSubscriberConfig {
   endpoint: string;
   token?: string;
@@ -40,16 +46,25 @@ export class GrpcSubscriber {
       } catch (error) {
         if (!this.running) break;
 
-        log.error("gRPC subscription error, reconnecting", {
-          error: error instanceof Error ? error.message : String(error),
-          retryInMs: this.reconnectDelay,
-        });
+        const msg = error instanceof Error ? error.message : String(error);
+        const isSlotOverflow = SLOT_OVERFLOW_PATTERN.test(msg);
 
-        await this.sleep(this.reconnectDelay);
-        this.reconnectDelay = Math.min(
-          this.reconnectDelay * 2,
-          this.MAX_RECONNECT_DELAY
-        );
+        if (isSlotOverflow) {
+          // Known proto bug — reconnect immediately with minimal delay
+          log.debug("gRPC slot overflow, reconnecting", { retryInMs: 500 });
+          await this.sleep(500);
+          // Don't increase reconnect delay for this error
+        } else {
+          log.error("gRPC subscription error, reconnecting", {
+            error: msg,
+            retryInMs: this.reconnectDelay,
+          });
+          await this.sleep(this.reconnectDelay);
+          this.reconnectDelay = Math.min(
+            this.reconnectDelay * 2,
+            this.MAX_RECONNECT_DELAY
+          );
+        }
       }
     }
 
@@ -161,7 +176,10 @@ export class GrpcSubscriber {
         });
 
         stream.on("error", (err: Error) => {
-          log.error("gRPC stream error", { error: err.message });
+          const isSlotOverflow = SLOT_OVERFLOW_PATTERN.test(err.message);
+          if (!isSlotOverflow) {
+            log.error("gRPC stream error", { error: err.message });
+          }
           reject(err);
         });
 

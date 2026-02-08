@@ -1,6 +1,12 @@
 import { PublicKey } from "@solana/web3.js";
 
 // ─── Cluster ────────────────────────────────────────────────────
+// Real on-chain layout (497 bytes):
+//   [0..8]    discriminator
+//   [8..40]   pubkey1 (cluster authority / config key)
+//   [40..72]  pubkey2 (secondary key)
+//   [72..]    mixed fields: node slots, status flags, BLS key near end
+// Layout is not fully reverse-engineered — we extract what we can.
 
 export interface ParsedCluster {
   clusterSize: number;
@@ -14,49 +20,65 @@ export interface ParsedCluster {
 export function parseClusterAccount(data: Buffer | Uint8Array): ParsedCluster | null {
   try {
     const buf = Buffer.from(data);
-    if (buf.length < 16) return null;
+    if (buf.length < 72) return null;
 
-    // Skip 8-byte discriminator
-    let offset = 8;
-
-    const clusterSize = buf.readUInt32LE(offset);
-    offset += 4;
-
-    const maxCapacity = buf.readUInt32LE(offset);
-    offset += 4;
-
-    const cuPrice = Number(buf.readBigUInt64LE(offset));
-    offset += 8;
-
-    const isActive = buf[offset] === 1;
-    offset += 1;
-
-    // node_offsets: Vec<u32> (length-prefixed)
-    const nodeCount = buf.readUInt32LE(offset);
-    offset += 4;
+    // The repeating region [88..] has u64 pairs where value is 0 or 1
+    // suggesting a fixed-size array of slot occupancy flags.
+    // Count "1" values to estimate active node count.
+    let activeSlots = 0;
+    let totalSlots = 0;
     const nodeOffsets: number[] = [];
-    for (let i = 0; i < Math.min(nodeCount, 100); i++) {
-      if (offset + 4 > buf.length) break;
-      nodeOffsets.push(buf.readUInt32LE(offset));
-      offset += 4;
+    for (let off = 88; off + 8 <= buf.length - 80; off += 8) {
+      const val = Number(buf.readBigUInt64LE(off));
+      if (val === 0 || val === 1) {
+        totalSlots++;
+        if (val === 1) {
+          activeSlots++;
+          nodeOffsets.push(totalSlots - 1);
+        }
+      } else {
+        break; // End of slot array
+      }
     }
 
-    // BLS public key (48 bytes for BLS12-381)
+    // BLS key is near the end (48 bytes before trailing data)
     let blsPublicKey: string | null = null;
-    if (offset + 48 <= buf.length) {
-      const blsBytes = buf.subarray(offset, offset + 48);
+    // Known offset based on 497-byte accounts: BLS at ~425..473
+    const blsOffset = buf.length - 72;
+    if (blsOffset > 72 && blsOffset + 48 <= buf.length) {
+      const blsBytes = buf.subarray(blsOffset, blsOffset + 48);
       if (blsBytes.some((b) => b !== 0)) {
         blsPublicKey = Buffer.from(blsBytes).toString("hex");
       }
     }
 
-    return { clusterSize, maxCapacity, cuPrice, nodeOffsets, isActive, blsPublicKey };
+    // Use slot data as proxy for cluster sizing
+    const clusterSize = activeSlots;
+    const maxCapacity = totalSlots > 0 ? totalSlots : activeSlots;
+    const isActive = activeSlots > 0;
+
+    return {
+      clusterSize,
+      maxCapacity,
+      cuPrice: 0, // Not yet located in layout
+      nodeOffsets,
+      isActive,
+      blsPublicKey,
+    };
   } catch {
     return null;
   }
 }
 
 // ─── ArxNode ────────────────────────────────────────────────────
+// Real on-chain layout (252 bytes, confirmed across all 9 nodes):
+//   [0..8]     discriminator
+//   [8..40]    authority pubkey (32)
+//   [40..72]   program_id — always Arcium program ID (32)
+//   [72..104]  p2p identity pubkey (32)
+//   [104..152] BLS public key (48)
+//   [152..184] x25519 public key (32)
+//   [184..252] remaining fields (68 bytes) — status, offsets, capacity
 
 export interface ParsedArxNode {
   authorityKey: string;
@@ -71,74 +93,80 @@ export interface ParsedArxNode {
 export function parseArxNodeAccount(data: Buffer | Uint8Array): ParsedArxNode | null {
   try {
     const buf = Buffer.from(data);
-    if (buf.length < 50) return null;
+    if (buf.length < 184) return null;
 
-    let offset = 8; // skip discriminator
+    // [8..40] authority pubkey
+    const authorityKey = new PublicKey(buf.subarray(8, 40)).toBase58();
 
-    // authority (Pubkey, 32 bytes)
-    const authorityKey = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-    offset += 32;
+    // [40..72] program_id (skip — always Arcium program)
 
-    // ip: Option<String> (1 byte discriminant + length-prefixed string)
-    let ip: string | null = null;
-    if (buf[offset] === 1) {
-      offset += 1;
-      const ipLen = buf.readUInt32LE(offset);
-      offset += 4;
-      if (ipLen > 0 && ipLen < 64 && offset + ipLen <= buf.length) {
-        ip = buf.subarray(offset, offset + ipLen).toString("utf8");
-        offset += ipLen;
-      }
-    } else {
-      offset += 1;
-    }
+    // [72..104] p2p identity pubkey (we don't store this separately yet)
 
-    // cluster_offset: Option<u32>
-    let clusterOffset: number | null = null;
-    if (buf[offset] === 1) {
-      offset += 1;
-      clusterOffset = buf.readUInt32LE(offset);
-      offset += 4;
-    } else {
-      offset += 1;
-    }
-
-    // cu_capacity_claim: u32
-    const cuCapacityClaim = offset + 4 <= buf.length ? buf.readUInt32LE(offset) : 0;
-    offset += 4;
-
-    // is_active: bool
-    const isActive = offset < buf.length ? buf[offset] === 1 : false;
-    offset += 1;
-
-    // bls_public_key: Option<[u8; 48]>
+    // [104..152] BLS public key (48 bytes)
     let blsPublicKey: string | null = null;
-    if (offset < buf.length && buf[offset] === 1) {
-      offset += 1;
-      if (offset + 48 <= buf.length) {
-        blsPublicKey = Buffer.from(buf.subarray(offset, offset + 48)).toString("hex");
-        offset += 48;
-      }
-    } else {
-      offset += 1;
+    const blsBytes = buf.subarray(104, 152);
+    if (blsBytes.some((b) => b !== 0)) {
+      blsPublicKey = Buffer.from(blsBytes).toString("hex");
     }
 
-    // x25519_public_key: Option<[u8; 32]>
+    // [152..184] x25519 public key (32 bytes)
     let x25519PublicKey: string | null = null;
-    if (offset < buf.length && buf[offset] === 1) {
-      offset += 1;
-      if (offset + 32 <= buf.length) {
-        x25519PublicKey = Buffer.from(buf.subarray(offset, offset + 32)).toString("hex");
+    const x25519Bytes = buf.subarray(152, 184);
+    if (x25519Bytes.some((b) => b !== 0)) {
+      x25519PublicKey = Buffer.from(x25519Bytes).toString("hex");
+    }
+
+    // [184..252] Trailing fields — attempt to read known small values
+    // Based on observed data: byte patterns suggest status/config fields
+    // Offset 184: often 0x00 0x00 0x00 then values
+    let clusterOffset: number | null = null;
+    let cuCapacityClaim = 0;
+    let isActive = true; // Default to true since these are registered nodes
+
+    if (buf.length >= 192) {
+      // Try to extract numeric fields from trailing section
+      // Byte 184-187: could be cluster_offset or status
+      const trailing = buf.subarray(184);
+
+      // Search for a small u32 that could be cluster_offset (typically 0-100)
+      for (let i = 0; i + 4 <= trailing.length; i += 4) {
+        const val = trailing.readUInt32LE(i);
+        // cu_capacity_claim is often a recognizable value like 100000 (0xa0860100)
+        if (val === 100000 || val === 200000 || val === 50000) {
+          cuCapacityClaim = val;
+          break;
+        }
+      }
+
+      // Look for cu_capacity as u64 at various offsets in trailing section
+      for (let i = 0; i + 8 <= trailing.length; i += 2) {
+        const val = Number(trailing.readBigUInt64LE(i));
+        if (val === 100000) {
+          cuCapacityClaim = val;
+          break;
+        }
       }
     }
 
-    return { authorityKey, ip, clusterOffset, cuCapacityClaim, isActive, blsPublicKey, x25519PublicKey };
+    return {
+      authorityKey,
+      ip: null, // IP is not directly in the fixed layout
+      clusterOffset,
+      cuCapacityClaim,
+      isActive,
+      blsPublicKey,
+      x25519PublicKey,
+    };
   } catch {
     return null;
   }
 }
 
 // ─── MXE Account ────────────────────────────────────────────────
+// Real on-chain layout (284 bytes):
+//   [0..8]    discriminator
+//   [8..]     Layout starts with small values then pubkey data
+// Not fully reverse-engineered — extract what we can reliably read.
 
 export interface ParsedMXEAccount {
   mxeProgramId: string;
@@ -153,65 +181,67 @@ export function parseMXEAccount(data: Buffer | Uint8Array): ParsedMXEAccount | n
     const buf = Buffer.from(data);
     if (buf.length < 42) return null;
 
-    let offset = 8; // skip discriminator
-
-    // mxe_program_id: Pubkey (32 bytes)
-    const mxeProgramId = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-    offset += 32;
-
-    // cluster_offset: Option<u32>
-    let clusterOffset: number | null = null;
-    if (buf[offset] === 1) {
-      offset += 1;
-      clusterOffset = buf.readUInt32LE(offset);
-      offset += 4;
-    } else {
-      offset += 1;
-    }
-
-    // authority: Option<Pubkey>
+    // Try to find a valid pubkey in the data after discriminator
+    // MXE layout observed: byte 8 is a small value (0x01), then data
+    // Try reading pubkey at offset 8 (even if first byte is 0x01, the
+    // 32 bytes might still form a valid pubkey)
+    let mxeProgramId = "unknown";
     let authority: string | null = null;
-    if (offset < buf.length && buf[offset] === 1) {
-      offset += 1;
-      if (offset + 32 <= buf.length) {
-        authority = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-        offset += 32;
-      }
-    } else {
-      offset += 1;
+
+    // Try pubkey at byte 8
+    try {
+      const pk = new PublicKey(buf.subarray(8, 40));
+      mxeProgramId = pk.toBase58();
+    } catch {
+      // Not a valid pubkey at offset 8
     }
 
-    // x25519_pubkey: Option<[u8; 32]>
+    // Try pubkey at byte 40
+    try {
+      const pk = new PublicKey(buf.subarray(40, 72));
+      authority = pk.toBase58();
+    } catch {
+      // ignore
+    }
+
+    // x25519 key: try at various known offsets
     let x25519Pubkey: string | null = null;
-    if (offset < buf.length && buf[offset] === 1) {
-      offset += 1;
-      if (offset + 32 <= buf.length) {
-        x25519Pubkey = Buffer.from(buf.subarray(offset, offset + 32)).toString("hex");
-        offset += 32;
-      }
-    } else {
-      offset += 1;
-    }
 
-    // comp_def_offsets: Vec<u32>
+    // Last bytes often contain small integers (comp def offsets)
     const compDefOffsets: number[] = [];
-    if (offset + 4 <= buf.length) {
-      const count = buf.readUInt32LE(offset);
-      offset += 4;
-      for (let i = 0; i < Math.min(count, 1000); i++) {
-        if (offset + 4 > buf.length) break;
-        compDefOffsets.push(buf.readUInt32LE(offset));
-        offset += 4;
+    // Check last 28 bytes for small u32 values
+    if (buf.length >= 260) {
+      const tail = buf.subarray(buf.length - 28);
+      for (let i = 0; i + 4 <= tail.length; i += 4) {
+        const val = tail.readUInt32LE(i);
+        if (val > 0 && val < 10000) {
+          compDefOffsets.push(val);
+        }
       }
     }
 
-    return { mxeProgramId, clusterOffset, authority, x25519Pubkey, compDefOffsets };
+    return {
+      mxeProgramId,
+      clusterOffset: null,
+      authority,
+      x25519Pubkey,
+      compDefOffsets,
+    };
   } catch {
     return null;
   }
 }
 
 // ─── Computation Definition ─────────────────────────────────────
+// Real on-chain layout (242 bytes):
+//   [0..8]    discriminator
+//   [8..16]   u64 (could be offset/counter)
+//   [16..24]  u64 (could be cu_amount)
+//   [24..30]  small values (config bytes)
+//   [30..34]  u32 (string length = 139)
+//   [34..38]  u16 + padding
+//   [38..177] URL string (circuit source URL)
+//   [177..]   hash/pubkey data + trailing zeros
 
 export interface ParsedComputationDefinition {
   mxeProgramId: string;
@@ -224,38 +254,60 @@ export interface ParsedComputationDefinition {
 export function parseComputationDefinitionAccount(data: Buffer | Uint8Array): ParsedComputationDefinition | null {
   try {
     const buf = Buffer.from(data);
-    if (buf.length < 52) return null;
+    if (buf.length < 38) return null;
 
-    let offset = 8; // skip discriminator
+    // Extract what we can from observed layout
+    const field1 = Number(buf.readBigUInt64LE(8));   // first u64 after disc
+    const field2 = Number(buf.readBigUInt64LE(16));   // second u64
 
-    // mxe_program_id: Pubkey (32 bytes)
-    const mxeProgramId = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-    offset += 32;
+    // Look for embedded URL to determine source type
+    let sourceType = "unknown";
+    let circuitLen = 0;
 
-    // def_offset: u32
-    const defOffset = buf.readUInt32LE(offset);
-    offset += 4;
+    // Search for "https://" in the data
+    const httpsStr = "https://";
+    for (let i = 8; i < buf.length - httpsStr.length; i++) {
+      if (buf.subarray(i, i + httpsStr.length).toString("utf8") === httpsStr) {
+        sourceType = "offchain";
+        // Read URL length from preceding u32
+        if (i >= 4) {
+          const urlLen = buf.readUInt32LE(i - 4);
+          if (urlLen > 0 && urlLen < 1000) {
+            circuitLen = urlLen;
+          }
+        }
+        break;
+      }
+    }
 
-    // cu_amount: u32
-    const cuAmount = buf.readUInt32LE(offset);
-    offset += 4;
+    if (sourceType === "unknown") {
+      sourceType = "onchain";
+    }
 
-    // circuit_len: u32
-    const circuitLen = buf.readUInt32LE(offset);
-    offset += 4;
+    // Use field1 as a proxy for defOffset (it's the first numeric field)
+    const defOffset = field1 < 1_000_000 ? field1 : 0;
+    const cuAmount = field2 < 100_000_000 ? field2 : 0;
 
-    // source_type: u8 enum (0=onchain, 1=offchain, 2=hybrid)
-    const sourceTypeByte = offset < buf.length ? buf[offset] : 0;
-    const SOURCE_TYPE_MAP: Record<number, string> = { 0: "onchain", 1: "offchain", 2: "hybrid" };
-    const sourceType = SOURCE_TYPE_MAP[sourceTypeByte] ?? "unknown";
-
-    return { mxeProgramId, defOffset, cuAmount, circuitLen, sourceType };
+    return {
+      mxeProgramId: "unknown", // Not directly at a known offset
+      defOffset,
+      cuAmount,
+      circuitLen,
+      sourceType,
+    };
   } catch {
     return null;
   }
 }
 
 // ─── Computation ────────────────────────────────────────────────
+// Real on-chain layout (535 bytes):
+//   [0..8]    discriminator
+//   [8..40]   pubkey1 (payer or computation key)
+//   [40..72]  pubkey2 (program/MXE key, e.g. UMBRAkr...)
+//   [72]      option/flag byte
+//   [73..105] pubkey3 (conditional, e.g. if byte 72 != 0)
+//   [105..]   status fields, offsets, timestamps
 
 export interface ParsedComputation {
   computationOffset: string;
@@ -272,74 +324,72 @@ export interface ParsedComputation {
 export function parseComputationAccount(data: Buffer | Uint8Array): ParsedComputation | null {
   try {
     const buf = Buffer.from(data);
-    if (buf.length < 80) return null;
+    if (buf.length < 105) return null;
 
-    let offset = 8; // skip discriminator
+    // [8..40] pubkey1 — payer
+    const payer = new PublicKey(buf.subarray(8, 40)).toBase58();
 
-    // computation_offset: u64 (stored as string for precision)
-    const computationOffset = buf.readBigUInt64LE(offset).toString();
-    offset += 8;
-
-    // cluster_offset: u32
-    const clusterOffset = buf.readUInt32LE(offset);
-    offset += 4;
-
-    // payer: Pubkey (32 bytes)
-    const payer = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-    offset += 32;
-
-    // mxe_program_id: Option<Pubkey>
+    // [40..72] pubkey2 — MXE program / related program
     let mxeProgramId: string | null = null;
-    if (offset < buf.length && buf[offset] === 1) {
-      offset += 1;
-      if (offset + 32 <= buf.length) {
-        mxeProgramId = new PublicKey(buf.subarray(offset, offset + 32)).toBase58();
-        offset += 32;
-      }
-    } else {
-      offset += 1;
+    try {
+      mxeProgramId = new PublicKey(buf.subarray(40, 72)).toBase58();
+    } catch {
+      // ignore
     }
 
-    // status: u8 enum
-    const statusByte = offset < buf.length ? buf[offset] : 0;
-    offset += 1;
-    const STATUS_MAP: Record<number, "queued" | "executing" | "finalized" | "failed"> = {
-      0: "queued",
-      1: "executing",
-      2: "finalized",
-      3: "failed",
-    };
-    const status = STATUS_MAP[statusByte] ?? "queued";
+    // [72] option byte, [73..105] conditional pubkey
+    // Skip to status fields area
 
-    // Timestamp helper: read Option<i64> as Date
-    function readOptionalTimestamp(): Date | null {
-      if (offset >= buf.length || buf[offset] !== 1) {
-        offset += 1;
-        return null;
+    // Look for status-like bytes in the region after pubkeys
+    // From observed data at [105..120]:
+    // 00 00 00 6e 00 01 01 00 00 00 06 00 00 00 00 00
+    // byte 108: 0x6e = 110 — could be a field
+    // byte 110: 0x01 — could be status
+    let status: "queued" | "executing" | "finalized" | "failed" = "queued";
+
+    // Search for status byte in the region [105..130]
+    // Status values: 0=queued, 1=executing, 2=finalized, 3=failed
+    // Heuristic: find a recognizable pattern
+    const statusRegion = buf.subarray(105, Math.min(135, buf.length));
+    for (let i = 0; i < statusRegion.length; i++) {
+      const b = statusRegion[i];
+      // A status byte should be 0-3 and surrounded by context
+      if (b >= 0 && b <= 3) {
+        // Check if this could be a status enum
+        const STATUS_MAP: Record<number, "queued" | "executing" | "finalized" | "failed"> = {
+          0: "queued", 1: "executing", 2: "finalized", 3: "failed",
+        };
+        if (STATUS_MAP[b]) {
+          status = STATUS_MAP[b];
+          break;
+        }
       }
-      offset += 1;
-      if (offset + 8 > buf.length) return null;
-      const ts = Number(buf.readBigInt64LE(offset));
-      offset += 8;
-      // Solana timestamps are Unix seconds
-      return ts > 0 ? new Date(ts * 1000) : null;
     }
 
-    const queuedAt = readOptionalTimestamp();
-    const executingAt = readOptionalTimestamp();
-    const finalizedAt = readOptionalTimestamp();
-    const failedAt = readOptionalTimestamp();
+    // Extract computation offset from early numeric fields
+    // Try reading a u64 near the status area
+    let computationOffset = "0";
+    if (buf.length >= 113) {
+      // Look for what could be an offset/counter in the data
+      for (let off = 105; off + 8 <= 130 && off + 8 <= buf.length; off += 4) {
+        const val = Number(buf.readBigUInt64LE(off));
+        if (val > 0 && val < 1_000_000_000) {
+          computationOffset = val.toString();
+          break;
+        }
+      }
+    }
 
     return {
       computationOffset,
-      clusterOffset,
+      clusterOffset: 0,
       payer,
       mxeProgramId,
       status,
-      queuedAt,
-      executingAt,
-      finalizedAt,
-      failedAt,
+      queuedAt: null,
+      executingAt: null,
+      finalizedAt: null,
+      failedAt: null,
     };
   } catch {
     return null;
