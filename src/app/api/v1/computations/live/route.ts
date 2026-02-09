@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
           .from(schema.computations)
           .where(and(eq(schema.computations.network, network), eq(schema.computations.isScaffold, false)))
           .orderBy(desc(schema.computations.createdAt))
-          .limit(10);
+          .limit(20);
 
         sendEvent({ type: "initial", computations: recent });
       } catch {
