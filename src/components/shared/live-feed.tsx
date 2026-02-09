@@ -20,7 +20,7 @@ interface LiveComputation {
   status: ComputationStatus;
   payer: string;
   mxeProgramId: string;
-  createdAt: string;
+  timestamp: string;
 }
 
 const MAX_ITEMS = 30;
@@ -150,7 +150,7 @@ export function LiveFeed() {
                 : "—"}
             </span>
             <span className="shrink-0 text-xs text-text-muted">
-              {timeAgo(comp.createdAt)}
+              {timeAgo(comp.timestamp)}
             </span>
           </Link>
         ))}
@@ -172,6 +172,11 @@ function mapComputation(c: Record<string, unknown>): LiveComputation {
       (c.mxeProgramId as string) ||
       (c.mxe_program_id as string) ||
       "",
-    createdAt: (c.createdAt as string) || (c.created_at as string) || "",
+    timestamp:
+      (c.queuedAt as string) ||
+      (c.queued_at as string) ||
+      (c.createdAt as string) ||
+      (c.created_at as string) ||
+      "",
   };
 }
