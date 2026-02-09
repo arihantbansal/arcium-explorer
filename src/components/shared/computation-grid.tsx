@@ -6,7 +6,7 @@ import { useComputations } from "@/lib/hooks/use-api";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { cn } from "@/lib/utils";
 
-const STATUS_COLORS_HEX = {
+export const STATUS_COLORS_HEX = {
   queued: "#4ade80",
   executing: "#fbbf24",
   finalized: "#6D45FF",
@@ -215,17 +215,6 @@ export function ComputationGrid({ className }: ComputationGridProps) {
         onMouseMove={handleMouseMove}
         onMouseLeave={handleMouseLeave}
       />
-      <div className="mt-3 flex items-center gap-4 text-xs text-text-muted">
-        {Object.entries(STATUS_COLORS_HEX).map(([status, color]) => (
-          <div key={status} className="flex items-center gap-1.5">
-            <span
-              className="inline-block h-2.5 w-2.5 rounded-sm"
-              style={{ backgroundColor: color }}
-            />
-            <span className="capitalize">{status}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
