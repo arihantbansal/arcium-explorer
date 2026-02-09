@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { ComputationGrid } from "@/components/shared/computation-grid";
 import { ThroughputChart } from "@/components/shared/throughput-chart";
+import { LiveFeed } from "@/components/shared/live-feed";
 
 function DashboardContent() {
   const { data: statsResponse, isLoading } = useStats();
@@ -73,9 +74,9 @@ function DashboardContent() {
         />
       </div>
 
-      {/* Computation grid + chart */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      {/* Computation grid + live feed */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div>
           <div className="rounded-lg border border-border-primary bg-bg-surface p-4">
             <h2 className="mb-4 text-sm font-medium text-text-secondary">
               Computation Grid
@@ -84,13 +85,21 @@ function DashboardContent() {
           </div>
         </div>
         <div>
-          <div className="rounded-lg border border-border-primary bg-bg-surface p-4">
+          <div className="flex h-full flex-col rounded-lg border border-border-primary bg-bg-surface p-4">
             <h2 className="mb-4 text-sm font-medium text-text-secondary">
-              Throughput
+              Live Feed
             </h2>
-            <ThroughputChart data={history} />
+            <LiveFeed />
           </div>
         </div>
+      </div>
+
+      {/* Throughput chart */}
+      <div className="rounded-lg border border-border-primary bg-bg-surface p-4">
+        <h2 className="mb-4 text-sm font-medium text-text-secondary">
+          Throughput
+        </h2>
+        <ThroughputChart data={history} />
       </div>
     </div>
   );
