@@ -121,21 +121,22 @@ function ComputationDetailContent() {
       <div className="rounded-lg border border-border-primary bg-bg-surface p-4 space-y-3">
         <h2 className="text-sm font-medium text-text-secondary">Details</h2>
         <div className="grid gap-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-text-muted">Address</span>
-            <AddressDisplay
-              address={String(comp.address)}
-              truncate={false}
-              showExternalLink
-              solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"}
-            />
+          <div className="flex items-center justify-between gap-4">
+            <span className="shrink-0 text-text-muted">Address</span>
+            <div className="min-w-0">
+              <AddressDisplay
+                address={String(comp.address)}
+                showExternalLink
+                solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"}
+              />
+            </div>
           </div>
-          <div className="flex justify-between">
-            <span className="text-text-muted">Computation Offset</span>
-            <span className="font-mono text-xs">{String(comp.computationOffset)}</span>
+          <div className="flex items-center justify-between gap-4">
+            <span className="shrink-0 text-text-muted">Computation Offset</span>
+            <span className="font-mono text-xs truncate min-w-0">{String(comp.computationOffset)}</span>
           </div>
-          <div className="flex justify-between">
-            <span className="text-text-muted">Cluster</span>
+          <div className="flex items-center justify-between gap-4">
+            <span className="shrink-0 text-text-muted">Cluster</span>
             <Link
               href={`/clusters/${comp.clusterOffset}?network=${network}`}
               className="font-mono text-accent-link hover:underline"
@@ -143,31 +144,39 @@ function ComputationDetailContent() {
               {String(comp.clusterOffset)}
             </Link>
           </div>
-          <div className="flex justify-between">
-            <span className="text-text-muted">Payer</span>
-            <AddressDisplay address={String(comp.payer)} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+          <div className="flex items-center justify-between gap-4">
+            <span className="shrink-0 text-text-muted">Payer</span>
+            <div className="min-w-0">
+              <AddressDisplay address={String(comp.payer)} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+            </div>
           </div>
           {!!comp.mxeProgramId && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">Program</span>
-              <Link
-                href={`/programs/${comp.mxeProgramId}?network=${network}`}
-                className="text-accent-link hover:underline"
-              >
-                <AddressDisplay address={String(comp.mxeProgramId)} showCopy={false} />
-              </Link>
+            <div className="flex items-center justify-between gap-4">
+              <span className="shrink-0 text-text-muted">Program</span>
+              <div className="min-w-0">
+                <Link
+                  href={`/programs/${comp.mxeProgramId}?network=${network}`}
+                  className="text-accent-link hover:underline"
+                >
+                  <AddressDisplay address={String(comp.mxeProgramId)} showCopy={false} />
+                </Link>
+              </div>
             </div>
           )}
           {!!comp.queueTxSig && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">Queue TX</span>
-              <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+            <div className="flex items-center justify-between gap-4">
+              <span className="shrink-0 text-text-muted">Queue TX</span>
+              <div className="min-w-0">
+                <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+              </div>
             </div>
           )}
           {!!comp.finalizeTxSig && (
-            <div className="flex justify-between">
-              <span className="text-text-muted">Finalize TX</span>
-              <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+            <div className="flex items-center justify-between gap-4">
+              <span className="shrink-0 text-text-muted">Finalize TX</span>
+              <div className="min-w-0">
+                <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+              </div>
             </div>
           )}
         </div>
