@@ -163,13 +163,13 @@ function ComputationDetailContent() {
           {!!comp.queueTxSig && (
             <div className="flex justify-between">
               <span className="text-text-muted">Queue TX</span>
-              <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+              <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
             </div>
           )}
           {!!comp.finalizeTxSig && (
             <div className="flex justify-between">
               <span className="text-text-muted">Finalize TX</span>
-              <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+              <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
             </div>
           )}
         </div>

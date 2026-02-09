@@ -14,6 +14,8 @@ interface AddressDisplayProps {
   showCopy?: boolean;
   showExternalLink?: boolean;
   solanaExplorerNetwork?: "devnet" | "mainnet-beta";
+  /** "account" (default) or "tx" — controls the Solscan URL path */
+  linkType?: "account" | "tx";
 }
 
 export function AddressDisplay({
@@ -26,6 +28,7 @@ export function AddressDisplay({
   showCopy = true,
   showExternalLink = false,
   solanaExplorerNetwork,
+  linkType = "account",
 }: AddressDisplayProps) {
   const [copied, setCopied] = useState(false);
 
@@ -38,7 +41,7 @@ export function AddressDisplay({
   const displayText = truncate ? truncateAddress(address, chars) : address;
 
   const solanaUrl = solanaExplorerNetwork
-    ? `https://explorer.solana.com/address/${address}?cluster=${solanaExplorerNetwork}`
+    ? `https://solscan.io/${linkType}/${address}${solanaExplorerNetwork === "devnet" ? "?cluster=devnet" : ""}`
     : undefined;
 
   const content = (
@@ -67,7 +70,7 @@ export function AddressDisplay({
           target="_blank"
           rel="noopener noreferrer"
           className="text-text-muted hover:text-accent-link transition-colors"
-          title="View on Solana Explorer"
+          title="View on Solscan"
         >
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
