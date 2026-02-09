@@ -99,8 +99,9 @@ export function parseArxNodeAccount(data: Buffer | Uint8Array): ParsedArxNode | 
     const cuCapacityClaim = Number(buf.readBigUInt64LE(off));
     off += 8;
 
-    // is_active: bool
-    const isActive = buf[off] === 1;
+    // is_active: bool (on-chain field is unreliable on devnet — always 0)
+    // Derive from ClusterMembership instead: variant 1 = Active
+    const isActive = membershipVariant === 1;
     off += 1;
 
     // bls_pubkey: BN254G2BLSPublicKey (unnamed struct with [u8; 64])
