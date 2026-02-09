@@ -72,7 +72,7 @@ export class TxEnricher {
 
     try {
       const { db, schema } = await getDb();
-      const { eq, and, or, isNull, sql } = await import("drizzle-orm");
+      const { eq, and, or, isNull } = await import("drizzle-orm");
 
       // Find computations missing tx signatures (excluding scaffolds)
       const rows = await db
@@ -131,29 +131,30 @@ export class TxEnricher {
               ? sigs[0].signature
               : null;
 
-          const updates: Record<string, string> = {};
+          const updates: Partial<{
+            queueTxSig: string;
+            finalizeTxSig: string;
+            updatedAt: Date;
+          }> = {};
           if (!row.queueTxSig && queueSig) {
-            updates.queue_tx_sig = queueSig;
+            updates.queueTxSig = queueSig;
           }
           if (!row.finalizeTxSig && finalizeSig) {
-            updates.finalize_tx_sig = finalizeSig;
+            updates.finalizeTxSig = finalizeSig;
           }
 
-          if (Object.keys(updates).length > 0) {
-            // Build dynamic SET clause
-            const setClauses = Object.entries(updates)
-              .map(([col, val]) => sql`${sql.raw(col)} = ${val}`)
-              .reduce((a, b) => sql`${a}, ${b}`);
-
-            await db.execute(
-              sql`UPDATE computations SET ${setClauses}, updated_at = NOW() WHERE id = ${row.id}`
-            );
+          if (updates.queueTxSig || updates.finalizeTxSig) {
+            updates.updatedAt = new Date();
+            await db
+              .update(schema.computations)
+              .set(updates)
+              .where(eq(schema.computations.id, row.id));
 
             enriched++;
             log.debug("Enriched computation tx sigs", {
               address: row.address,
-              queueTxSig: updates.queue_tx_sig ?? "(already set)",
-              finalizeTxSig: updates.finalize_tx_sig ?? "(not applicable)",
+              queueTxSig: updates.queueTxSig ?? "(already set)",
+              finalizeTxSig: updates.finalizeTxSig ?? "(not applicable)",
             });
           }
 
