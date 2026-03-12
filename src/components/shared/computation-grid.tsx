@@ -1,179 +1,95 @@
 "use client";
 
-import { useRef, useEffect, useCallback, useState } from "react";
+import { useRef, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useComputations } from "@/lib/hooks/use-api";
 import { useNetwork } from "@/lib/hooks/use-network";
+import { getArciumError } from "@/lib/arcium-errors";
 import { cn } from "@/lib/utils";
 
-export const STATUS_COLORS_HEX = {
+// Phase colors for the legend
+export const PHASE_COLORS = {
   queued: "#4ade80",
-  executing: "#fbbf24",
-  finalized: "#6D45FF",
-  failed: "#f87171",
-};
+  callbackOk: "#6D45FF",
+  callbackError: "#f87171",
+  pending: "#6b7280",
+} as const;
 
-const HOVER_BORDER_COLOR = "#e8e8f0";
+const MIN_CELL_SIZE = 28;
 const GAP = 3;
-const MAX_SIDE = 30;
+const MAX_SIDE = 20;
 const MAX_CELLS = MAX_SIDE * MAX_SIDE;
 
-interface GridDimensions {
-  side: number;
-  cellSize: number;
-  canvasSize: number;
+interface ComputationTile {
+  address: string;
+  status: string;
+  callbackErrorCode: number | null;
+  queuedAt: string | null;
+  finalizedAt: string | null;
 }
 
-function computeDimensions(
-  containerWidth: number,
-  count: number
-): GridDimensions {
-  const side = Math.min(MAX_SIDE, Math.max(1, Math.ceil(Math.sqrt(count))));
-  const cellSize = Math.floor((containerWidth - GAP * (side - 1)) / side);
-  const canvasSize = side * cellSize + GAP * (side - 1);
-  return { side, cellSize, canvasSize };
+interface TooltipData {
+  x: number;
+  y: number;
+  tile: ComputationTile;
 }
 
-interface ComputationGridProps {
-  className?: string;
-}
-
-export function ComputationGrid({ className }: ComputationGridProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+export function ComputationGrid({ className }: { className?: string }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const network = useNetwork();
-  const [containerWidth, setContainerWidth] = useState<number>(0);
-  const [hoveredIndex, setHoveredIndex] = useState<number>(-1);
+  const [containerWidth, setContainerWidth] = useState(0);
+  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
 
   const { data: response } = useComputations(1, MAX_CELLS);
-  const computations = (response?.data || []) as Array<{
-    status: keyof typeof STATUS_COLORS_HEX;
-    address: string;
-  }>;
-
-  const dims =
-    containerWidth > 0 && computations.length > 0
-      ? computeDimensions(containerWidth, computations.length)
-      : null;
+  const computations = (response?.data || []) as ComputationTile[];
 
   // Observe container size
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
-
     const observer = new ResizeObserver((entries) => {
       const entry = entries[0];
       if (!entry) return;
       const width = entry.contentRect.width;
       if (width > 0) setContainerWidth(width);
     });
-
     observer.observe(wrapper);
     return () => observer.disconnect();
   }, []);
 
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !dims) return;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const { side, cellSize, canvasSize } = dims;
-    const totalCells = side * side;
-
-    canvas.width = canvasSize * dpr;
-    canvas.height = canvasSize * dpr;
-    canvas.style.width = `${canvasSize}px`;
-    canvas.style.height = `${canvasSize}px`;
-    ctx.scale(dpr, dpr);
-
-    ctx.clearRect(0, 0, canvasSize, canvasSize);
-
-    const radius = Math.max(2, Math.round(cellSize * 0.12));
-
-    for (let i = 0; i < totalCells; i++) {
-      const col = i % side;
-      const row = Math.floor(i / side);
-      const x = col * (cellSize + GAP);
-      const y = row * (cellSize + GAP);
-
-      if (i < computations.length) {
-        const color =
-          STATUS_COLORS_HEX[computations[i].status] || "#363a54";
-        ctx.fillStyle = color;
-        ctx.globalAlpha = 0.85;
-      } else {
-        ctx.fillStyle = "#2a2d42";
-        ctx.globalAlpha = 0.3;
-      }
-
-      ctx.beginPath();
-      ctx.roundRect(x, y, cellSize, cellSize, radius);
-      ctx.fill();
-
-      // Hover highlight
-      if (i === hoveredIndex && i < computations.length) {
-        ctx.globalAlpha = 1;
-        ctx.strokeStyle = HOVER_BORDER_COLOR;
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
-        ctx.roundRect(
-          x - 0.5,
-          y - 0.5,
-          cellSize + 1,
-          cellSize + 1,
-          radius + 0.5
-        );
-        ctx.stroke();
-      }
-    }
-
-    ctx.globalAlpha = 1;
-  }, [computations, dims, hoveredIndex]);
-
-  useEffect(() => {
-    draw();
-  }, [draw]);
-
-  const getCellIndex = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!dims || !canvasRef.current) return -1;
-      const rect = canvasRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const col = Math.floor(x / (dims.cellSize + GAP));
-      const row = Math.floor(y / (dims.cellSize + GAP));
-      if (col < 0 || col >= dims.side || row < 0 || row >= dims.side)
-        return -1;
-      return row * dims.side + col;
-    },
-    [dims]
-  );
+  // Grid dimensions
+  const count = Math.min(computations.length, MAX_CELLS);
+  const cols =
+    containerWidth > 0
+      ? Math.min(MAX_SIDE, Math.max(1, Math.floor((containerWidth + GAP) / (MIN_CELL_SIZE + GAP))))
+      : 0;
+  const rows = cols > 0 ? Math.ceil(count / cols) : 0;
+  const cellSize =
+    cols > 0 ? Math.floor((containerWidth - GAP * (cols - 1)) / cols) : 0;
 
   const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const index = getCellIndex(e);
-      if (index >= 0 && index < computations.length) {
-        router.push(
-          `/computations/${computations[index].address}?network=${network}`
-        );
-      }
+    (tile: ComputationTile) => {
+      router.push(`/computations/${tile.address}?network=${network}`);
     },
-    [getCellIndex, computations, router, network]
+    [router, network]
   );
 
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLCanvasElement>) => {
-      const index = getCellIndex(e);
-      setHoveredIndex(index < computations.length ? index : -1);
+  const handleMouseEnter = useCallback(
+    (e: React.MouseEvent, tile: ComputationTile) => {
+      const rect = wrapperRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      setTooltip({
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+        tile,
+      });
     },
-    [getCellIndex, computations.length]
+    []
   );
 
   const handleMouseLeave = useCallback(() => {
-    setHoveredIndex(-1);
+    setTooltip(null);
   }, []);
 
   if (computations.length === 0) {
@@ -191,7 +107,7 @@ export function ComputationGrid({ className }: ComputationGridProps) {
     );
   }
 
-  if (!dims) {
+  if (cols === 0) {
     return (
       <div ref={wrapperRef} className={cn("aspect-square w-full", className)}>
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
@@ -202,19 +118,120 @@ export function ComputationGrid({ className }: ComputationGridProps) {
   }
 
   return (
-    <div ref={wrapperRef} className={cn("w-full", className)}>
-      <canvas
-        ref={canvasRef}
-        className={cn(
-          "w-full",
-          hoveredIndex >= 0 && hoveredIndex < computations.length
-            ? "cursor-pointer"
-            : "cursor-default"
-        )}
-        onClick={handleClick}
-        onMouseMove={handleMouseMove}
-        onMouseLeave={handleMouseLeave}
-      />
+    <div ref={wrapperRef} className={cn("relative w-full", className)}>
+      <div
+        className="grid"
+        style={{
+          gridTemplateColumns: `repeat(${cols}, ${cellSize}px)`,
+          gap: `${GAP}px`,
+        }}
+      >
+        {computations.slice(0, cols * rows).map((tile) => {
+          const isFinalized = tile.status === "finalized";
+          const isFailed = tile.status === "failed";
+          const hasCallback = isFinalized || isFailed;
+          const hasError =
+            tile.callbackErrorCode !== null && tile.callbackErrorCode > 0;
+
+          return (
+            <div
+              key={tile.address}
+              className="flex cursor-pointer overflow-hidden rounded-sm transition-all hover:ring-1 hover:ring-white/40"
+              style={{ width: cellSize, height: cellSize }}
+              onClick={() => handleClick(tile)}
+              onMouseEnter={(e) => handleMouseEnter(e, tile)}
+              onMouseLeave={handleMouseLeave}
+            >
+              {/* Q half — always green (computation exists = queue succeeded) */}
+              <div
+                className="flex flex-1 items-center justify-center"
+                style={{ backgroundColor: PHASE_COLORS.queued, opacity: 0.85 }}
+              >
+                <span
+                  className="font-mono font-bold leading-none text-black/70"
+                  style={{ fontSize: Math.max(8, cellSize * 0.3) }}
+                >
+                  ↑
+                </span>
+              </div>
+              {/* C half */}
+              <div
+                className="flex flex-1 items-center justify-center"
+                style={{
+                  backgroundColor: hasCallback
+                    ? hasError
+                      ? PHASE_COLORS.callbackError
+                      : PHASE_COLORS.callbackOk
+                    : PHASE_COLORS.pending,
+                  opacity: hasCallback ? 0.85 : 0.4,
+                }}
+              >
+                <span
+                  className="font-mono font-bold leading-none text-black/70"
+                  style={{ fontSize: Math.max(8, cellSize * 0.3) }}
+                >
+                  {hasCallback ? (hasError ? "!" : "↓") : "↓"}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Tooltip */}
+      {tooltip && <GridTooltip data={tooltip} />}
+    </div>
+  );
+}
+
+function GridTooltip({ data }: { data: TooltipData }) {
+  const { tile, x, y } = data;
+  const hasCallback =
+    tile.status === "finalized" || tile.status === "failed";
+  const hasError =
+    tile.callbackErrorCode !== null && tile.callbackErrorCode > 0;
+  const error = hasError ? getArciumError(tile.callbackErrorCode!) : null;
+
+  return (
+    <div
+      className="pointer-events-none absolute z-50 max-w-xs rounded-md border border-border-primary bg-bg-elevated px-3 py-2 text-xs shadow-lg"
+      style={{
+        left: x,
+        top: y - 8,
+        transform: "translate(-50%, -100%)",
+      }}
+    >
+      <div className="font-mono text-text-primary">
+        {tile.address.slice(0, 8)}...{tile.address.slice(-4)}
+      </div>
+      <div className="mt-1 space-y-0.5 text-text-secondary">
+        <div className="flex items-center gap-1.5">
+          <span style={{ color: PHASE_COLORS.queued }}>↑ Q:</span>
+          <span>Queued{tile.queuedAt ? ` · ${new Date(tile.queuedAt).toLocaleString()}` : ""}</span>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span
+            style={{
+              color: hasCallback
+                ? hasError
+                  ? PHASE_COLORS.callbackError
+                  : PHASE_COLORS.callbackOk
+                : PHASE_COLORS.pending,
+            }}
+          >
+            {hasCallback ? (hasError ? "! C:" : "↓ C:") : "↓ C:"}
+          </span>
+          <span>
+            {!hasCallback
+              ? "Pending"
+              : hasError && error
+              ? `Error: ${error.name} (${tile.callbackErrorCode}) — ${error.msg}`
+              : hasError
+              ? `Error code ${tile.callbackErrorCode}`
+              : `OK${tile.finalizedAt ? ` · ${new Date(tile.finalizedAt).toLocaleString()}` : ""}`}
+          </span>
+        </div>
+      </div>
     </div>
   );
 }

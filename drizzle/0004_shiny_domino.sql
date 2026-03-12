@@ -1,0 +1,1 @@
+ALTER TABLE "computations" ADD COLUMN "callback_error_code" integer;

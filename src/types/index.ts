@@ -79,6 +79,7 @@ export interface Computation {
   failedAt: string | null;
   queueTxSig: string | null;
   finalizeTxSig: string | null;
+  callbackErrorCode: number | null;
   network: Network;
   createdAt: string;
   updatedAt: string;

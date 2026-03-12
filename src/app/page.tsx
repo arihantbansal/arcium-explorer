@@ -12,7 +12,7 @@ import {
   Code,
   Shield,
 } from "lucide-react";
-import { ComputationGrid, STATUS_COLORS_HEX } from "@/components/shared/computation-grid";
+import { ComputationGrid, PHASE_COLORS } from "@/components/shared/computation-grid";
 import { ThroughputChart } from "@/components/shared/throughput-chart";
 import { LiveFeed } from "@/components/shared/live-feed";
 
@@ -83,13 +83,18 @@ function DashboardContent() {
                 Computation Grid
               </h2>
               <div className="flex items-center gap-3 text-xs text-text-muted">
-                {Object.entries(STATUS_COLORS_HEX).map(([status, color]) => (
-                  <div key={status} className="flex items-center gap-1.5">
+                {([
+                  ["queued", "Queued"],
+                  ["callbackOk", "Callback OK"],
+                  ["callbackError", "Callback Error"],
+                  ["pending", "Pending"],
+                ] as const).map(([key, label]) => (
+                  <div key={key} className="flex items-center gap-1.5">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-sm"
-                      style={{ backgroundColor: color }}
+                      style={{ backgroundColor: PHASE_COLORS[key] }}
                     />
-                    <span className="capitalize">{status}</span>
+                    <span>{label}</span>
                   </div>
                 ))}
               </div>

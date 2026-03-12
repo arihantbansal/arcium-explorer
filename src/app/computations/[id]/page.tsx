@@ -10,6 +10,7 @@ import { formatTimestamp } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { ComputationStatus } from "@/types";
+import { getArciumError } from "@/lib/arcium-errors";
 
 const LIFECYCLE_STEPS: { key: string; label: string; status: ComputationStatus; color: string; bgColor: string; borderColor: string }[] = [
   { key: "queuedAt", label: "Queued", status: "queued", color: "text-status-queued", bgColor: "bg-status-queued/20", borderColor: "border-status-queued" },
@@ -41,6 +42,8 @@ function ComputationDetailContent() {
   }
 
   const status = comp.status as ComputationStatus;
+  const callbackErrorCode = comp.callbackErrorCode as number | null;
+  const callbackError = callbackErrorCode && callbackErrorCode > 0 ? getArciumError(callbackErrorCode) : null;
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-6 space-y-6">
@@ -57,6 +60,18 @@ function ComputationDetailContent() {
         </h1>
         <StatusBadge status={status} />
       </div>
+
+      {/* Callback error alert */}
+      {callbackErrorCode !== null && callbackErrorCode > 0 && (
+        <div className="rounded-lg border border-red-500/40 bg-red-500/10 p-4">
+          <h3 className="text-sm font-medium text-red-400">Callback Error</h3>
+          <p className="mt-1 text-sm text-red-300/80">
+            {callbackError
+              ? `${callbackError.name} (${callbackErrorCode}) — ${callbackError.msg}`
+              : `Unknown error code ${callbackErrorCode}`}
+          </p>
+        </div>
+      )}
 
       {/* Lifecycle timeline */}
       <div className="rounded-lg border border-border-primary bg-bg-surface p-4">

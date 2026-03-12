@@ -4,10 +4,30 @@ import type { Network } from "@/types";
 
 const log = createLogger("tx-enricher");
 
+// Error code 6204 = AlreadyCallbackedComputation (duplicate retry, not a real failure)
+const ALREADY_CALLBACKED_CODE = 6204;
+
 async function getDb() {
   const { db } = await import("@/lib/db");
   const schema = await import("@/lib/db/schema");
   return { db, schema };
+}
+
+/**
+ * Extract Arcium custom error code from a Solana TransactionError.
+ * Arcium errors appear as: { InstructionError: [index, { Custom: code }] }
+ */
+function extractCustomErrorCode(err: unknown): number | null {
+  if (!err || typeof err !== "object") return null;
+  const obj = err as Record<string, unknown>;
+  const ie = obj.InstructionError;
+  if (!Array.isArray(ie) || ie.length < 2) return null;
+  const detail = ie[1];
+  if (detail && typeof detail === "object" && "Custom" in (detail as Record<string, unknown>)) {
+    const code = (detail as Record<string, number>).Custom;
+    return typeof code === "number" ? code : null;
+  }
+  return null;
 }
 
 export interface TxEnricherConfig {
@@ -72,9 +92,12 @@ export class TxEnricher {
 
     try {
       const { db, schema } = await getDb();
-      const { eq, and, or, isNull } = await import("drizzle-orm");
+      const { eq, and, or, isNull, isNotNull } = await import("drizzle-orm");
 
-      // Find computations missing tx signatures (excluding scaffolds)
+      // Find computations needing enrichment:
+      // 1. Missing queueTxSig (need to find queue tx)
+      // 2. Finalized but missing finalizeTxSig (need to find callback tx)
+      // 3. Has finalizeTxSig but callbackErrorCode not yet checked (need error extraction)
       const rows = await db
         .select({
           id: schema.computations.id,
@@ -82,6 +105,7 @@ export class TxEnricher {
           status: schema.computations.status,
           queueTxSig: schema.computations.queueTxSig,
           finalizeTxSig: schema.computations.finalizeTxSig,
+          callbackErrorCode: schema.computations.callbackErrorCode,
         })
         .from(schema.computations)
         .where(
@@ -93,6 +117,10 @@ export class TxEnricher {
               and(
                 eq(schema.computations.status, "finalized"),
                 isNull(schema.computations.finalizeTxSig)
+              ),
+              and(
+                isNotNull(schema.computations.finalizeTxSig),
+                isNull(schema.computations.callbackErrorCode)
               )
             )
           )
@@ -125,25 +153,67 @@ export class TxEnricher {
 
           // Sigs returned newest-first; oldest = queueTxSig
           const queueSig = sigs[sigs.length - 1].signature;
-          // If finalized and more than 1 sig, newest = finalizeTxSig
-          const finalizeSig =
-            row.status === "finalized" && sigs.length > 1
-              ? sigs[0].signature
-              : null;
+
+          // Find the real callback sig: walk from second-oldest forward,
+          // skip any sig with error code 6204 (AlreadyCallbackedComputation = duplicate retry),
+          // take the first non-6204 sig as the real callback.
+          let finalizeSig: string | null = null;
+          let callbackErrorCode: number | null = null;
+          let callbackSucceeded = false;
+
+          if (sigs.length > 1) {
+            // sigs are newest-first, so iterate from second-oldest (index len-2) toward newest
+            for (let i = sigs.length - 2; i >= 0; i--) {
+              const sig = sigs[i];
+              const errCode = extractCustomErrorCode(sig.err);
+
+              // Skip duplicate retry attempts (6204 = AlreadyCallbackedComputation)
+              if (errCode === ALREADY_CALLBACKED_CODE) continue;
+
+              finalizeSig = sig.signature;
+              if (sig.err) {
+                // Real error — callback failed
+                callbackErrorCode = errCode;
+              } else {
+                // No error — callback succeeded
+                callbackSucceeded = true;
+              }
+              break;
+            }
+          }
 
           const updates: Partial<{
             queueTxSig: string;
             finalizeTxSig: string;
+            callbackErrorCode: number;
+            status: "queued" | "executing" | "finalized" | "failed";
+            failedAt: Date;
             updatedAt: Date;
           }> = {};
+
           if (!row.queueTxSig && queueSig) {
             updates.queueTxSig = queueSig;
           }
-          if (!row.finalizeTxSig && finalizeSig) {
-            updates.finalizeTxSig = finalizeSig;
+
+          if (finalizeSig) {
+            if (!row.finalizeTxSig) {
+              updates.finalizeTxSig = finalizeSig;
+            }
+
+            if (callbackErrorCode !== null && row.callbackErrorCode === null) {
+              updates.callbackErrorCode = callbackErrorCode;
+              // Mark as failed if we found a real error
+              if (row.status !== "failed") {
+                updates.status = "failed";
+                updates.failedAt = new Date();
+              }
+            } else if (callbackSucceeded && row.callbackErrorCode === null) {
+              // Store 0 to indicate "checked, no error" — distinguishes from null (unchecked)
+              updates.callbackErrorCode = 0;
+            }
           }
 
-          if (updates.queueTxSig || updates.finalizeTxSig) {
+          if (Object.keys(updates).length > 0) {
             updates.updatedAt = new Date();
             await db
               .update(schema.computations)
@@ -155,6 +225,7 @@ export class TxEnricher {
               address: row.address,
               queueTxSig: updates.queueTxSig ?? "(already set)",
               finalizeTxSig: updates.finalizeTxSig ?? "(not applicable)",
+              callbackErrorCode: updates.callbackErrorCode ?? "(none)",
             });
           }
 

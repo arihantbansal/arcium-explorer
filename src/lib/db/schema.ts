@@ -144,6 +144,7 @@ export const computations = pgTable(
     failedAt: timestamp("failed_at"),
     queueTxSig: varchar("queue_tx_sig", { length: 128 }),
     finalizeTxSig: varchar("finalize_tx_sig", { length: 128 }),
+    callbackErrorCode: integer("callback_error_code"),
     network: networkEnum("network").notNull().default("devnet"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
