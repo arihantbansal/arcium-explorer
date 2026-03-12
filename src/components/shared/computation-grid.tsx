@@ -164,15 +164,15 @@ export function ComputationGrid({
                 </div>
               </div>
               {/* Q/C phase arrows */}
-              <div className="flex items-center justify-center gap-3 pb-2 pt-1">
+              <div className="flex items-center justify-center gap-5 pb-3 pt-1">
                 <span
-                  className="text-lg font-bold leading-none"
+                  className="text-3xl font-black leading-none"
                   style={{ color: PHASE_COLORS.queued }}
                 >
                   ↑
                 </span>
                 <span
-                  className="text-lg font-bold leading-none"
+                  className="text-3xl font-black leading-none"
                   style={{
                     color: hasCallback
                       ? hasError

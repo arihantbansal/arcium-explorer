@@ -9,9 +9,9 @@
   --border-muted: #2e3148;
 
   /* Status colors */
-  --status-queued: #4ade80;
+  --status-queued: #6D45FF;
   --status-executing: #fbbf24;
-  --status-finalized: #6D45FF;
+  --status-finalized: #4ade80;
   --status-failed: #f87171;
 
   /* Text */

@@ -199,8 +199,26 @@ export async function upsertComputation(
 ): Promise<void> {
   const { db, schema } = await getDb();
 
+  // Resolve cluster offset from MXE account if the parser couldn't determine it
+  let clusterOffset = parsed.clusterOffset;
+  if (clusterOffset === 0 && parsed.mxeProgramId) {
+    const [mxe] = await db
+      .select({ clusterOffset: schema.mxeAccounts.clusterOffset })
+      .from(schema.mxeAccounts)
+      .where(
+        and(
+          eq(schema.mxeAccounts.mxeProgramId, parsed.mxeProgramId),
+          eq(schema.mxeAccounts.network, network)
+        )
+      )
+      .limit(1);
+    if (mxe?.clusterOffset) {
+      clusterOffset = mxe.clusterOffset;
+    }
+  }
+
   const existing = await db
-    .select({ id: schema.computations.id })
+    .select({ id: schema.computations.id, clusterOffset: schema.computations.clusterOffset })
     .from(schema.computations)
     .where(
       and(
@@ -213,7 +231,7 @@ export async function upsertComputation(
   const data = {
     address,
     computationOffset: parsed.computationOffset,
-    clusterOffset: parsed.clusterOffset,
+    clusterOffset,
     payer: parsed.payer,
     mxeProgramId: parsed.mxeProgramId,
     status: parsed.status,
