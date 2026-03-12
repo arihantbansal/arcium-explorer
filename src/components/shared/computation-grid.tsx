@@ -2,15 +2,15 @@
 
 import { useRef, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { useComputations } from "@/lib/hooks/use-api";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { getArciumError } from "@/lib/arcium-errors";
 import { cn } from "@/lib/utils";
+import type { SharedComputation } from "./computation-types";
 
-// Phase colors for the legend
+// Phase colors — purple for queue, green for callback OK
 export const PHASE_COLORS = {
-  queued: "#4ade80",
-  callbackOk: "#6D45FF",
+  queued: "#6D45FF",
+  callbackOk: "#4ade80",
   callbackError: "#f87171",
   pending: "#6b7280",
 } as const;
@@ -18,33 +18,26 @@ export const PHASE_COLORS = {
 const MIN_CELL_SIZE = 28;
 const GAP = 3;
 const MAX_SIDE = 20;
-const MAX_CELLS = MAX_SIDE * MAX_SIDE;
 
-interface ComputationTile {
-  address: string;
-  status: string;
-  callbackErrorCode: number | null;
-  queuedAt: string | null;
-  finalizedAt: string | null;
+interface ComputationGridProps {
+  computations: SharedComputation[];
+  highlightedAddress: string | null;
+  onHover: (address: string | null) => void;
+  className?: string;
 }
 
-interface TooltipData {
-  x: number;
-  y: number;
-  tile: ComputationTile;
-}
-
-export function ComputationGrid({ className }: { className?: string }) {
+export function ComputationGrid({
+  computations,
+  highlightedAddress,
+  onHover,
+  className,
+}: ComputationGridProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const network = useNetwork();
   const [containerWidth, setContainerWidth] = useState(0);
-  const [tooltip, setTooltip] = useState<TooltipData | null>(null);
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; tile: SharedComputation } | null>(null);
 
-  const { data: response } = useComputations(1, MAX_CELLS);
-  const computations = (response?.data || []) as ComputationTile[];
-
-  // Observe container size
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
@@ -58,8 +51,7 @@ export function ComputationGrid({ className }: { className?: string }) {
     return () => observer.disconnect();
   }, []);
 
-  // Grid dimensions
-  const count = Math.min(computations.length, MAX_CELLS);
+  const count = computations.length;
   const cols =
     containerWidth > 0
       ? Math.min(MAX_SIDE, Math.max(1, Math.floor((containerWidth + GAP) / (MIN_CELL_SIZE + GAP))))
@@ -69,14 +61,14 @@ export function ComputationGrid({ className }: { className?: string }) {
     cols > 0 ? Math.floor((containerWidth - GAP * (cols - 1)) / cols) : 0;
 
   const handleClick = useCallback(
-    (tile: ComputationTile) => {
+    (tile: SharedComputation) => {
       router.push(`/computations/${tile.address}?network=${network}`);
     },
     [router, network]
   );
 
   const handleMouseEnter = useCallback(
-    (e: React.MouseEvent, tile: ComputationTile) => {
+    (e: React.MouseEvent, tile: SharedComputation) => {
       const rect = wrapperRef.current?.getBoundingClientRect();
       if (!rect) return;
       setTooltip({
@@ -84,15 +76,17 @@ export function ComputationGrid({ className }: { className?: string }) {
         y: e.clientY - rect.top,
         tile,
       });
+      onHover(tile.address);
     },
-    []
+    [onHover]
   );
 
   const handleMouseLeave = useCallback(() => {
     setTooltip(null);
-  }, []);
+    onHover(null);
+  }, [onHover]);
 
-  if (computations.length === 0) {
+  if (count === 0) {
     return (
       <div ref={wrapperRef} className={cn("aspect-square w-full", className)}>
         <div className="flex h-full items-center justify-center text-sm text-text-muted">
@@ -132,23 +126,29 @@ export function ComputationGrid({ className }: { className?: string }) {
           const hasCallback = isFinalized || isFailed;
           const hasError =
             tile.callbackErrorCode !== null && tile.callbackErrorCode > 0;
+          const isHighlighted = highlightedAddress === tile.address;
 
           return (
             <div
               key={tile.address}
-              className="flex cursor-pointer overflow-hidden rounded-sm transition-all hover:ring-1 hover:ring-white/40"
+              className={cn(
+                "flex cursor-pointer overflow-hidden rounded-sm transition-all",
+                isHighlighted
+                  ? "ring-2 ring-white/80 scale-110 z-10"
+                  : "hover:ring-1 hover:ring-white/40"
+              )}
               style={{ width: cellSize, height: cellSize }}
               onClick={() => handleClick(tile)}
               onMouseEnter={(e) => handleMouseEnter(e, tile)}
               onMouseLeave={handleMouseLeave}
             >
-              {/* Q half — always green (computation exists = queue succeeded) */}
+              {/* Q half — purple */}
               <div
                 className="flex flex-1 items-center justify-center"
                 style={{ backgroundColor: PHASE_COLORS.queued, opacity: 0.85 }}
               >
                 <span
-                  className="font-mono font-bold leading-none text-black/70"
+                  className="font-mono font-bold leading-none text-white/70"
                   style={{ fontSize: Math.max(8, cellSize * 0.3) }}
                 >
                   ↑
@@ -167,7 +167,10 @@ export function ComputationGrid({ className }: { className?: string }) {
                 }}
               >
                 <span
-                  className="font-mono font-bold leading-none text-black/70"
+                  className={cn(
+                    "font-mono font-bold leading-none",
+                    hasCallback && !hasError ? "text-black/70" : "text-black/70"
+                  )}
                   style={{ fontSize: Math.max(8, cellSize * 0.3) }}
                 >
                   {hasCallback ? (hasError ? "!" : "↓") : "↓"}
@@ -178,13 +181,12 @@ export function ComputationGrid({ className }: { className?: string }) {
         })}
       </div>
 
-      {/* Tooltip */}
       {tooltip && <GridTooltip data={tooltip} />}
     </div>
   );
 }
 
-function GridTooltip({ data }: { data: TooltipData }) {
+function GridTooltip({ data }: { data: { x: number; y: number; tile: SharedComputation } }) {
   const { tile, x, y } = data;
   const hasCallback =
     tile.status === "finalized" || tile.status === "failed";
