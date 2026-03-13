@@ -116,7 +116,7 @@ async function main(): Promise<void> {
     const devnetEnricher = new TxEnricher({
       rpcUrl: DEVNET_RPC_URL,
       network: "devnet",
-      batchSize: 10,
+      batchSize: 50,
       rateLimitMs: 100,
     });
     devnetEnricher.start();

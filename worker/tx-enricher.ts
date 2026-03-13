@@ -92,7 +92,7 @@ export class TxEnricher {
 
     try {
       const { db, schema } = await getDb();
-      const { eq, and, or, isNull, isNotNull } = await import("drizzle-orm");
+      const { eq, and, or, isNull, isNotNull, desc } = await import("drizzle-orm");
 
       // Find computations needing enrichment:
       // 1. Missing queueTxSig (need to find queue tx)
@@ -134,7 +134,7 @@ export class TxEnricher {
             )
           )
         )
-        .orderBy(schema.computations.id)
+        .orderBy(desc(schema.computations.id))
         .limit(this.batchSize);
 
       if (rows.length === 0) {
