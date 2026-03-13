@@ -163,27 +163,55 @@ export function ComputationGrid({
                   </span>
                 </div>
               </div>
-              {/* Q/C phase arrows */}
+              {/* Q/C phase arrows — link to Solscan tx */}
               <div className="flex items-center justify-center gap-5 pb-3 pt-1">
-                <span
-                  className="text-3xl font-black leading-none"
-                  style={{ color: PHASE_COLORS.queued }}
-                >
-                  ↑
-                </span>
-                <span
-                  className="text-3xl font-black leading-none"
-                  style={{
-                    color: hasCallback
-                      ? hasError
+                {tile.queueTxSig ? (
+                  <a
+                    href={`https://solscan.io/tx/${tile.queueTxSig}${network === "devnet" ? "?cluster=devnet" : ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-3xl font-black leading-none hover:brightness-125 transition-all"
+                    style={{ color: PHASE_COLORS.queued }}
+                    onClick={(e) => e.stopPropagation()}
+                    title="View queue TX on Solscan"
+                  >
+                    ↑
+                  </a>
+                ) : (
+                  <span
+                    className="text-3xl font-black leading-none"
+                    style={{ color: PHASE_COLORS.queued }}
+                  >
+                    ↑
+                  </span>
+                )}
+                {tile.finalizeTxSig ? (
+                  <a
+                    href={`https://solscan.io/tx/${tile.finalizeTxSig}${network === "devnet" ? "?cluster=devnet" : ""}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-3xl font-black leading-none hover:brightness-125 transition-all"
+                    style={{
+                      color: hasError
                         ? PHASE_COLORS.callbackError
-                        : PHASE_COLORS.callbackOk
-                      : PHASE_COLORS.pending,
-                    opacity: hasCallback ? 1 : 0.4,
-                  }}
-                >
-                  {hasError ? "!" : "↓"}
-                </span>
+                        : PHASE_COLORS.callbackOk,
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                    title="View callback TX on Solscan"
+                  >
+                    {hasError ? "!" : "↓"}
+                  </a>
+                ) : (
+                  <span
+                    className="text-3xl font-black leading-none"
+                    style={{
+                      color: PHASE_COLORS.pending,
+                      opacity: 0.4,
+                    }}
+                  >
+                    ↓
+                  </span>
+                )}
               </div>
             </div>
           );

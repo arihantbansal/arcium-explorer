@@ -7,6 +7,8 @@ export interface SharedComputation {
   callbackErrorCode: number | null;
   payer: string;
   mxeProgramId: string | null;
+  queueTxSig: string | null;
+  finalizeTxSig: string | null;
   queuedAt: string | null;
   finalizedAt: string | null;
   createdAt: string;
