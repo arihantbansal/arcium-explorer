@@ -5,7 +5,7 @@ export const RPC_ENDPOINTS = {
   mainnet: process.env.NEXT_PUBLIC_MAINNET_RPC_URL || "https://api.mainnet-beta.solana.com",
 } as const;
 
-export const DEFAULT_NETWORK = "devnet" as const;
+export const DEFAULT_NETWORK = "mainnet" as const;
 export const DEFAULT_PAGE_SIZE = 20;
 export const INDEXER_INTERVAL_MS = 30_000;
 

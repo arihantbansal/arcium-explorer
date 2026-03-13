@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
 
@@ -5,6 +6,7 @@ interface MetricCardProps {
   label: string;
   value: string | number;
   icon?: LucideIcon;
+  href?: string;
   trend?: {
     value: number;
     label: string;
@@ -16,13 +18,15 @@ export function MetricCard({
   label,
   value,
   icon: Icon,
+  href,
   trend,
   className,
 }: MetricCardProps) {
-  return (
+  const card = (
     <div
       className={cn(
         "rounded-lg border border-border-primary bg-bg-surface p-4",
+        href && "hover:border-white/30 hover:bg-bg-elevated transition-colors cursor-pointer",
         className
       )}
     >
@@ -44,4 +48,10 @@ export function MetricCard({
       )}
     </div>
   );
+
+  if (href) {
+    return <Link href={href}>{card}</Link>;
+  }
+
+  return card;
 }

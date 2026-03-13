@@ -2,6 +2,7 @@
 
 import { Suspense, useState, useCallback } from "react";
 import { useStats, useStatsHistory, useComputations } from "@/lib/hooks/use-api";
+import { useNetwork } from "@/lib/hooks/use-network";
 import { MetricCard } from "@/components/shared/metric-card";
 import { formatNumber } from "@/lib/utils";
 import {
@@ -22,6 +23,7 @@ import type { SharedComputation } from "@/components/shared/computation-types";
 const PAGE_SIZE = 20;
 
 function DashboardContent() {
+  const network = useNetwork();
   const { data: statsResponse, isLoading } = useStats();
   const { data: historyResponse } = useStatsHistory(50);
   const stats = statsResponse?.data as Record<string, number> | undefined;
@@ -64,31 +66,37 @@ function DashboardContent() {
           label="Clusters"
           value={isLoading ? "..." : formatNumber(stats?.totalClusters || 0)}
           icon={Layers}
+          href={`/clusters?network=${network}`}
         />
         <MetricCard
           label="Active Nodes"
           value={isLoading ? "..." : formatNumber(stats?.activeNodes || 0)}
           icon={Server}
+          href={`/nodes?network=${network}&active=true`}
         />
         <MetricCard
           label="Computations"
           value={isLoading ? "..." : formatNumber(stats?.totalComputations || 0)}
           icon={Cpu}
+          href={`/computations?network=${network}`}
         />
         <MetricCard
           label="Queued"
           value={isLoading ? "..." : formatNumber(stats?.queuedComputations || 0)}
           icon={Activity}
+          href={`/computations?network=${network}&status=queued`}
         />
         <MetricCard
           label="Programs"
           value={isLoading ? "..." : formatNumber(stats?.totalPrograms || 0)}
           icon={Code}
+          href={`/programs?network=${network}`}
         />
         <MetricCard
           label="MXEs"
           value={isLoading ? "..." : formatNumber(stats?.totalMxes || 0)}
           icon={Shield}
+          href={`/mxes?network=${network}`}
         />
       </div>
 
