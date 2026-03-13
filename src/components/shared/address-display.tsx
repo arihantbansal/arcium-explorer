@@ -38,7 +38,7 @@ export function AddressDisplay({
     setTimeout(() => setCopied(false), 2000);
   }, [address]);
 
-  const displayText = truncate ? truncateAddress(address, chars) : address;
+  const truncatedText = truncate ? truncateAddress(address, chars) : address;
 
   const solanaUrl = solanaExplorerNetwork
     ? `https://solscan.io/${linkType}/${address}${solanaExplorerNetwork === "devnet" ? "?cluster=devnet" : ""}`
@@ -52,9 +52,21 @@ export function AddressDisplay({
         className
       )}
     >
-      <span className="text-text-primary" title={address}>
-        {displayText}
-      </span>
+      {truncate ? (
+        <>
+          {/* Full address on md+, truncated on mobile */}
+          <span className="hidden md:inline text-text-primary" title={address}>
+            {address}
+          </span>
+          <span className="md:hidden text-text-primary" title={address}>
+            {truncatedText}
+          </span>
+        </>
+      ) : (
+        <span className="text-text-primary" title={address}>
+          {address}
+        </span>
+      )}
       {showCopy && (
         <button
           onClick={handleCopy}
