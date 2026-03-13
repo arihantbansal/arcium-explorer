@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { eq, and, or, ilike } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";

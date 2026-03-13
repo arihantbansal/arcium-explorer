@@ -38,7 +38,3 @@ export function timeAgo(ts: Date | string | number): string {
   const days = Math.floor(hours / 24);
   return `${days}d ago`;
 }
-
-export type Network = "devnet" | "mainnet";
-
-export const ARCIUM_PROGRAM_ID = "Arcj82pX7HxYKLR92qvgZUAd7vGS1k4hQvAFcPATFdEQ";
