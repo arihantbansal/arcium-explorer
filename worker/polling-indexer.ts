@@ -18,6 +18,20 @@ const ENTITY_TYPES: AccountTypeName[] = [
   "ComputationAccount",
 ];
 
+const RPC_TIMEOUT_MS = 30_000;
+
+async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`RPC timeout after ${ms}ms`)), ms);
+  });
+  try {
+    return await Promise.race([promise, timeout]);
+  } finally {
+    clearTimeout(timer!);
+  }
+}
+
 async function fetchWithRetry(
   connection: Connection,
   discriminator: Buffer,
@@ -25,20 +39,26 @@ async function fetchWithRetry(
 ) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
-      return await connection.getProgramAccounts(ARCIUM_PROGRAM, {
-        filters: [
-          {
-            memcmp: {
-              offset: 0,
-              bytes: discriminator.toString("base64"),
-              encoding: "base64",
+      return await withTimeout(
+        connection.getProgramAccounts(ARCIUM_PROGRAM, {
+          filters: [
+            {
+              memcmp: {
+                offset: 0,
+                bytes: discriminator.toString("base64"),
+                encoding: "base64",
+              },
             },
-          },
-        ],
-        commitment: "confirmed",
-      });
+          ],
+          commitment: "confirmed",
+        }),
+        RPC_TIMEOUT_MS
+      );
     } catch (err) {
       if (attempt === retries) throw err;
+      log.warn(`getProgramAccounts attempt ${attempt} failed, retrying`, {
+        error: err instanceof Error ? err.message : String(err),
+      });
       await new Promise((r) => setTimeout(r, 1000 * attempt));
     }
   }
