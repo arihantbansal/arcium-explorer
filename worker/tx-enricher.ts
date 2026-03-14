@@ -251,10 +251,19 @@ export class TxEnricher {
 
           if (Object.keys(updates).length > 0) {
             updates.updatedAt = new Date();
-            await db
-              .update(schema.computations)
-              .set(updates)
-              .where(eq(schema.computations.id, row.id));
+            // Retry DB write up to 3 times (Railway networking can be flaky)
+            for (let attempt = 1; attempt <= 3; attempt++) {
+              try {
+                await db
+                  .update(schema.computations)
+                  .set(updates)
+                  .where(eq(schema.computations.id, row.id));
+                break;
+              } catch (dbErr) {
+                if (attempt === 3) throw dbErr;
+                await this.sleep(500 * attempt);
+              }
+            }
 
             enriched++;
             log.debug("Enriched computation tx sigs", {

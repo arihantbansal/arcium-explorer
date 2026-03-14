@@ -18,6 +18,33 @@ const ENTITY_TYPES: AccountTypeName[] = [
   "ComputationAccount",
 ];
 
+async function fetchWithRetry(
+  connection: Connection,
+  discriminator: Buffer,
+  retries = 3
+) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      return await connection.getProgramAccounts(ARCIUM_PROGRAM, {
+        filters: [
+          {
+            memcmp: {
+              offset: 0,
+              bytes: discriminator.toString("base64"),
+              encoding: "base64",
+            },
+          },
+        ],
+        commitment: "confirmed",
+      });
+    } catch (err) {
+      if (attempt === retries) throw err;
+      await new Promise((r) => setTimeout(r, 1000 * attempt));
+    }
+  }
+  throw new Error("unreachable");
+}
+
 async function pollEntityType(
   connection: Connection,
   entityType: AccountTypeName,
@@ -25,18 +52,7 @@ async function pollEntityType(
 ): Promise<number> {
   const discriminator = DISCRIMINATORS[entityType];
 
-  const accounts = await connection.getProgramAccounts(ARCIUM_PROGRAM, {
-    filters: [
-      {
-        memcmp: {
-          offset: 0,
-          bytes: discriminator.toString("base64"),
-          encoding: "base64",
-        },
-      },
-    ],
-    commitment: "confirmed",
-  });
+  const accounts = await fetchWithRetry(connection, discriminator);
 
   let processed = 0;
   for (const { pubkey, account } of accounts) {
