@@ -15,6 +15,7 @@ const MAINNET_RPC_URL = process.env.MAINNET_RPC_URL || "https://poc-rpc.layer33.
 const DEVNET_RPC_URL = process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com";
 const MAINNET_GRPC_ENDPOINT = process.env.MAINNET_GRPC_ENDPOINT || "https://poc-rpc.layer33.com:10000";
 const MAINNET_GRPC_TOKEN = process.env.MAINNET_GRPC_TOKEN || undefined;
+const MAINNET_WS_URL = process.env.MAINNET_WS_URL || undefined;
 const DEVNET_WS_URL = process.env.DEVNET_WS_URL || undefined;
 const MAINNET_ENRICHER_RPC_URL = process.env.MAINNET_ENRICHER_RPC_URL || undefined;
 
@@ -40,6 +41,7 @@ async function main(): Promise<void> {
     enableDevnet: ENABLE_DEVNET,
     mainnetRpc: MAINNET_RPC_URL,
     devnetRpc: DEVNET_RPC_URL,
+    mainnetWsUrl: MAINNET_WS_URL ?? "(derived from rpcUrl)",
     devnetWsUrl: DEVNET_WS_URL ?? "(derived from rpcUrl)",
     grpcEndpoint: MAINNET_GRPC_ENDPOINT,
   });
@@ -52,17 +54,30 @@ async function main(): Promise<void> {
   if (ENABLE_MAINNET) {
     activeNetworks.push("mainnet");
 
-    // Primary: gRPC streaming for real-time updates
-    const grpcSub = new GrpcSubscriber({
-      endpoint: MAINNET_GRPC_ENDPOINT,
-      token: MAINNET_GRPC_TOKEN,
+    // Primary: WebSocket subscription for real-time updates
+    const mainnetWsSub = new WsSubscriber({
+      rpcUrl: MAINNET_RPC_URL,
+      wsUrl: MAINNET_WS_URL,
       network: "mainnet",
     });
-    services.push(grpcSub);
-    // Start gRPC in background (it runs its own reconnect loop)
-    grpcSub.start().catch((err) =>
-      log.error("gRPC subscriber fatal error", { error: String(err) })
+    services.push(mainnetWsSub);
+    mainnetWsSub.start().catch((err) =>
+      log.error("Mainnet WS subscriber fatal error", { error: String(err) })
     );
+
+    // Optional: gRPC streaming (only if explicitly configured and working)
+    if (MAINNET_GRPC_ENDPOINT && process.env.MAINNET_GRPC_ENDPOINT) {
+      const grpcSub = new GrpcSubscriber({
+        endpoint: MAINNET_GRPC_ENDPOINT,
+        token: MAINNET_GRPC_TOKEN,
+        network: "mainnet",
+      });
+      services.push(grpcSub);
+      grpcSub.start().catch((err) =>
+        log.error("gRPC subscriber fatal error", { error: String(err) })
+      );
+      log.info("Mainnet gRPC enabled", { endpoint: MAINNET_GRPC_ENDPOINT });
+    }
 
     // Secondary: slow polling for consistency checks
     const mainnetPoller = new PollingIndexer({
@@ -86,7 +101,7 @@ async function main(): Promise<void> {
       log.info("Mainnet TX enricher enabled", { rpcUrl: MAINNET_ENRICHER_RPC_URL });
     }
 
-    log.info("Mainnet indexing enabled (gRPC + polling)");
+    log.info("Mainnet indexing enabled (WS + polling)");
   }
 
   if (ENABLE_DEVNET) {
