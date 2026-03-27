@@ -18,7 +18,6 @@ import {
 import { ComputationGrid, PHASE_COLORS } from "@/components/shared/computation-grid";
 import { ThroughputChart } from "@/components/shared/throughput-chart";
 import { LiveFeed } from "@/components/shared/live-feed";
-import type { SharedComputation } from "@/components/shared/computation-types";
 
 const PAGE_SIZE = 20;
 
@@ -26,21 +25,16 @@ function DashboardContent() {
   const network = useNetwork();
   const { data: statsResponse, isLoading } = useStats();
   const { data: historyResponse } = useStatsHistory(50);
-  const stats = statsResponse?.data as Record<string, number> | undefined;
-  const history = (historyResponse?.data || []) as Array<{
-    timestamp: string;
-    totalComputations: number;
-    computationsPerMin: number;
-    activeNodes: number;
-  }>;
+  const stats = statsResponse?.data;
+  const history = historyResponse?.data ?? [];
 
   // Shared state: pagination + hover
   const [page, setPage] = useState(1);
   const [highlightedAddress, setHighlightedAddress] = useState<string | null>(null);
 
   const { data: compResponse } = useComputations(page, PAGE_SIZE);
-  const computations = (compResponse?.data || []) as SharedComputation[];
-  const total = (compResponse?.meta?.total as number) || 0;
+  const computations = compResponse?.data ?? [];
+  const total = compResponse?.meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleHover = useCallback((address: string | null) => {
