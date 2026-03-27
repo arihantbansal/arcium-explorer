@@ -135,6 +135,8 @@ export const ComputationGrid = memo(function ComputationGrid({
           return (
             <div
               key={tile.address}
+              role="button"
+              tabIndex={0}
               className={cn(
                 "flex cursor-pointer flex-col overflow-hidden rounded-md border transition-all",
                 isHighlighted
@@ -143,6 +145,12 @@ export const ComputationGrid = memo(function ComputationGrid({
               )}
               style={{ backgroundColor: "#1e2035" }}
               onClick={() => handleClick(tile)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  handleClick(tile);
+                }
+              }}
               onMouseEnter={(e) => handleMouseEnter(e, tile)}
               onMouseLeave={handleMouseLeave}
             >
