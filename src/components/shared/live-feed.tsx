@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, memo } from "react";
 import Link from "next/link";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { truncateAddress, timeAgo } from "@/lib/utils";
@@ -20,7 +20,7 @@ interface LiveFeedProps {
   onHover: (address: string | null) => void;
 }
 
-export function LiveFeed({
+export const LiveFeed = memo(function LiveFeed({
   computations,
   highlightedAddress,
   onHover,
@@ -113,4 +113,4 @@ export function LiveFeed({
       </div>
     </div>
   );
-}
+});

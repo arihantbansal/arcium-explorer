@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
 
     if (isPubkey) {
       // Search by address across all entity types in parallel
-      const [clusters, nodes, computations, programs, mxes] = await Promise.all([
+      const [clusters, nodes, computations, programs, mxes, definitions] = await Promise.all([
         db
           .select()
           .from(schema.clusters)
@@ -111,6 +111,19 @@ export async function GET(req: NextRequest) {
             )
           )
           .limit(5),
+        db
+          .select()
+          .from(schema.computationDefinitions)
+          .where(
+            and(
+              eq(schema.computationDefinitions.network, network),
+              or(
+                eq(schema.computationDefinitions.address, query),
+                eq(schema.computationDefinitions.mxeProgramId, query)
+              )
+            )
+          )
+          .limit(5),
       ]);
 
       results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
@@ -118,6 +131,7 @@ export async function GET(req: NextRequest) {
       results.push(...computations.map((c) => ({ type: "computation", data: c })));
       results.push(...programs.map((p) => ({ type: "program", data: p })));
       results.push(...mxes.map((m) => ({ type: "mxe", data: m })));
+      results.push(...definitions.map((d) => ({ type: "definition", data: d })));
     }
 
     // Search nodes by offset

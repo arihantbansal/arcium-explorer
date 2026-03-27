@@ -145,6 +145,7 @@ export class GrpcSubscriber {
               address,
               data: info.data,
               network: this.network,
+              slot: Number(accountUpdate.slot) || undefined,
             });
 
             this.accountsProcessed++;

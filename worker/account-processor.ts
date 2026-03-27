@@ -25,6 +25,8 @@ export interface AccountUpdate {
   address: string;
   data: Buffer | Uint8Array;
   network: Network;
+  /** Solana slot of this account update — used to prevent older data overwriting newer */
+  slot?: number;
 }
 
 async function retry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
@@ -44,7 +46,7 @@ async function retry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T>
  * Returns the account type name if processed, null if skipped.
  */
 export async function processAccountUpdate(update: AccountUpdate): Promise<string | null> {
-  const { address, data, network } = update;
+  const { address, data, network, slot } = update;
   const buf = Buffer.from(data);
 
   const accountType = identifyAccountType(buf);
@@ -58,7 +60,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
       case "Cluster": {
         const parsed = parseClusterAccount(buf);
         if (parsed) {
-          await retry(() => upsertCluster(address, parsed, network));
+          await retry(() => upsertCluster(address, parsed, network, slot));
           log.debug("Upserted cluster", { address });
         }
         break;
@@ -66,7 +68,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
       case "ArxNode": {
         const parsed = parseArxNodeAccount(buf);
         if (parsed) {
-          await retry(() => upsertArxNode(address, parsed, network));
+          await retry(() => upsertArxNode(address, parsed, network, slot));
           log.debug("Upserted arx node", { address });
         }
         break;
@@ -74,7 +76,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
       case "MXEAccount": {
         const parsed = parseMXEAccount(buf);
         if (parsed) {
-          await retry(() => upsertMXEAccount(address, parsed, network));
+          await retry(() => upsertMXEAccount(address, parsed, network, slot));
           log.debug("Upserted MXE account", { address });
         }
         break;

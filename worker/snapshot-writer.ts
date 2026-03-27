@@ -5,7 +5,7 @@ import type { Network } from "@/types";
 
 const log = createLogger("snapshots");
 
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = Number(process.env.SNAPSHOT_RETENTION_DAYS) || 30;
 
 async function getDb() {
   const { db } = await import("@/lib/db");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useEffect, useState, useCallback } from "react";
+import { useRef, useEffect, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { truncateAddress, timeAgo } from "@/lib/utils";
@@ -25,7 +25,7 @@ interface ComputationGridProps {
   className?: string;
 }
 
-export function ComputationGrid({
+export const ComputationGrid = memo(function ComputationGrid({
   computations,
   highlightedAddress,
   onHover,
@@ -218,7 +218,7 @@ export function ComputationGrid({
       {tooltip && <GridTooltip data={tooltip} />}
     </div>
   );
-}
+});
 
 function GridTooltip({
   data,

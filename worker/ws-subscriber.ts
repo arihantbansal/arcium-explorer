@@ -120,6 +120,7 @@ export class WsSubscriber {
                 address,
                 data,
                 network: this.network,
+                slot: context.slot,
               });
 
               this.accountsProcessed++;

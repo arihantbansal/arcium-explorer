@@ -20,11 +20,13 @@ async function getDb() {
 export async function upsertCluster(
   address: string,
   parsed: ParsedCluster,
-  network: Network
+  network: Network,
+  slot?: number
 ): Promise<void> {
   const { db, schema } = await getDb();
 
   const derivedOffset = deriveClusterOffset(address) ?? 0;
+  const lastSeenSlot = slot ?? 0;
 
   await db
     .insert(schema.clusters)
@@ -37,6 +39,7 @@ export async function upsertCluster(
       nodeOffsets: parsed.nodeOffsets,
       blsPublicKey: parsed.blsPublicKey,
       isActive: parsed.isActive,
+      lastSeenSlot,
       network,
       updatedAt: new Date(),
     })
@@ -49,21 +52,24 @@ export async function upsertCluster(
         nodeOffsets: parsed.nodeOffsets,
         blsPublicKey: parsed.blsPublicKey,
         isActive: parsed.isActive,
-        // Preserve existing offset if non-zero; otherwise use derived
         offset: sql`CASE WHEN ${schema.clusters.offset} != 0 THEN ${schema.clusters.offset} ELSE ${derivedOffset} END`,
+        lastSeenSlot: sql`GREATEST(${schema.clusters.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
+      setWhere: sql`${schema.clusters.lastSeenSlot} <= ${lastSeenSlot}`,
     });
 }
 
 export async function upsertArxNode(
   address: string,
   parsed: ParsedArxNode,
-  network: Network
+  network: Network,
+  slot?: number
 ): Promise<void> {
   const { db, schema } = await getDb();
 
   const derivedOffset = deriveArxNodeOffset(address) ?? 0;
+  const lastSeenSlot = slot ?? 0;
 
   await db
     .insert(schema.arxNodes)
@@ -77,6 +83,7 @@ export async function upsertArxNode(
       isActive: parsed.isActive,
       blsPublicKey: parsed.blsPublicKey,
       x25519PublicKey: parsed.x25519PublicKey,
+      lastSeenSlot,
       network,
       updatedAt: new Date(),
     })
@@ -90,19 +97,23 @@ export async function upsertArxNode(
         isActive: parsed.isActive,
         blsPublicKey: parsed.blsPublicKey,
         x25519PublicKey: parsed.x25519PublicKey,
-        // Preserve existing offset if non-zero; otherwise use derived
         offset: sql`CASE WHEN ${schema.arxNodes.offset} != 0 THEN ${schema.arxNodes.offset} ELSE ${derivedOffset} END`,
+        lastSeenSlot: sql`GREATEST(${schema.arxNodes.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
+      setWhere: sql`${schema.arxNodes.lastSeenSlot} <= ${lastSeenSlot}`,
     });
 }
 
 export async function upsertMXEAccount(
   address: string,
   parsed: ParsedMXEAccount,
-  network: Network
+  network: Network,
+  slot?: number
 ): Promise<void> {
   const { db, schema } = await getDb();
+
+  const lastSeenSlot = slot ?? 0;
 
   await db
     .insert(schema.mxeAccounts)
@@ -113,6 +124,7 @@ export async function upsertMXEAccount(
       authority: parsed.authority,
       x25519Pubkey: parsed.x25519Pubkey,
       compDefOffsets: parsed.compDefOffsets,
+      lastSeenSlot,
       network,
       updatedAt: new Date(),
     })
@@ -124,8 +136,10 @@ export async function upsertMXEAccount(
         authority: parsed.authority,
         x25519Pubkey: parsed.x25519Pubkey,
         compDefOffsets: parsed.compDefOffsets,
+        lastSeenSlot: sql`GREATEST(${schema.mxeAccounts.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
+      setWhere: sql`${schema.mxeAccounts.lastSeenSlot} <= ${lastSeenSlot}`,
     });
 }
 
