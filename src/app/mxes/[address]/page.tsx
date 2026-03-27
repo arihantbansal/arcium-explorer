@@ -23,7 +23,7 @@ function MxeDetailContent() {
   }>;
   const scaffoldComputations = (mxe?.scaffoldComputations || []) as Array<{
     address: string;
-    computationOffset: string;
+    compDefOffset: string;
     status: string;
   }>;
 
@@ -114,7 +114,7 @@ function MxeDetailContent() {
               >
                 <AddressDisplay address={comp.address} showCopy={false} />
                 <div className="flex items-center gap-3 text-xs text-text-muted">
-                  <span>Offset: {comp.computationOffset}</span>
+                  <span>Def #{comp.compDefOffset}</span>
                   <StatusBadge status={comp.status as ComputationStatus} />
                 </div>
               </Link>

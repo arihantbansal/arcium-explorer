@@ -158,7 +158,7 @@ export function ComputationGrid({
                 </div>
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-text-muted">
-                    #{tile.computationOffset}
+                    Def #{tile.compDefOffset}
                   </span>
                   <span className="text-[10px] capitalize text-text-secondary">
                     {tile.status}

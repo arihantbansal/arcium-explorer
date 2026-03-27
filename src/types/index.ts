@@ -67,7 +67,7 @@ export interface ComputationDefinition {
 export interface Computation {
   id: number;
   address: string;
-  computationOffset: string;
+  compDefOffset: string;
   clusterOffset: number;
   payer: string;
   mxeProgramId: string | null;

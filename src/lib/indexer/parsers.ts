@@ -347,11 +347,11 @@ export function parseMXEAccount(data: Buffer | Uint8Array): ParsedMXEAccount | n
 //   bump: u8
 
 export interface ParsedComputationDefinition {
-  mxeProgramId: string;
-  defOffset: number;
   cuAmount: number;
   circuitLen: number;
   sourceType: string;
+  // mxeProgramId and defOffset are NOT in this struct on-chain.
+  // They are resolved during upsert via PDA reverse-lookup against MXE accounts.
 }
 
 export function parseComputationDefinitionAccount(data: Buffer | Uint8Array): ParsedComputationDefinition | null {
@@ -409,9 +409,6 @@ export function parseComputationDefinitionAccount(data: Buffer | Uint8Array): Pa
     }
 
     return {
-      // mxeProgramId is not in this struct — derived from MXE relationship
-      mxeProgramId: finAuthOpt.value ?? "unknown",
-      defOffset: 0, // not in the struct — derived from PDA seeds
       cuAmount,
       circuitLen,
       sourceType,
@@ -437,7 +434,7 @@ export function parseComputationDefinitionAccount(data: Buffer | Uint8Array): Pa
 //   bump: u8
 
 export interface ParsedComputation {
-  computationOffset: string;
+  compDefOffset: string;
   clusterOffset: number;
   payer: string;
   mxeProgramId: string | null;
@@ -484,14 +481,13 @@ export function parseComputationAccount(data: Buffer | Uint8Array): ParsedComput
     off += 1;
     const status: "queued" | "finalized" = statusByte === 1 ? "finalized" : "queued";
 
-    // computationOffset: store comp_def_offset as string identifier
-    const computationOffset = defOffset.toString();
+    const compDefOffset = defOffset.toString();
 
     // Scaffold computations are created by init_mxe_part2 with payer = system program
     const isScaffold = payer === "11111111111111111111111111111111";
 
     return {
-      computationOffset,
+      compDefOffset,
       clusterOffset: 0, // cluster derived via MXE join, not stored on computation
       payer,
       mxeProgramId,

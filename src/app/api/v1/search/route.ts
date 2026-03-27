@@ -12,6 +12,10 @@ export async function GET(req: NextRequest) {
     return errorResponse("Search query required", 400);
   }
 
+  if (query.length > 100) {
+    return errorResponse("Query too long", 400);
+  }
+
   try {
     const { db } = await import("@/lib/db");
     const schema = await import("@/lib/db/schema");
@@ -44,76 +48,75 @@ export async function GET(req: NextRequest) {
     }
 
     if (isPubkey) {
-      // Search by address across all entity types
-      const clusters = await db
-        .select()
-        .from(schema.clusters)
-        .where(
-          and(
-            eq(schema.clusters.network, network),
-            eq(schema.clusters.address, query)
+      // Search by address across all entity types in parallel
+      const [clusters, nodes, computations, programs, mxes] = await Promise.all([
+        db
+          .select()
+          .from(schema.clusters)
+          .where(
+            and(
+              eq(schema.clusters.network, network),
+              eq(schema.clusters.address, query)
+            )
           )
-        )
-        .limit(1);
+          .limit(1),
+        db
+          .select()
+          .from(schema.arxNodes)
+          .where(
+            and(
+              eq(schema.arxNodes.network, network),
+              or(
+                eq(schema.arxNodes.address, query),
+                eq(schema.arxNodes.authorityKey, query)
+              )
+            )
+          )
+          .limit(5),
+        db
+          .select()
+          .from(schema.computations)
+          .where(
+            and(
+              eq(schema.computations.network, network),
+              or(
+                eq(schema.computations.address, query),
+                eq(schema.computations.payer, query),
+                eq(schema.computations.queueTxSig, query),
+                eq(schema.computations.finalizeTxSig, query)
+              )
+            )
+          )
+          .limit(5),
+        db
+          .select()
+          .from(schema.programs)
+          .where(
+            and(
+              eq(schema.programs.network, network),
+              eq(schema.programs.programId, query)
+            )
+          )
+          .limit(1),
+        db
+          .select()
+          .from(schema.mxeAccounts)
+          .where(
+            and(
+              eq(schema.mxeAccounts.network, network),
+              or(
+                eq(schema.mxeAccounts.address, query),
+                eq(schema.mxeAccounts.mxeProgramId, query)
+              )
+            )
+          )
+          .limit(5),
+      ]);
+
       results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
-
-      const nodes = await db
-        .select()
-        .from(schema.arxNodes)
-        .where(
-          and(
-            eq(schema.arxNodes.network, network),
-            or(
-              eq(schema.arxNodes.address, query),
-              eq(schema.arxNodes.authorityKey, query)
-            )
-          )
-        )
-        .limit(5);
       results.push(...nodes.map((n) => ({ type: "node", data: n })));
-
-      const computations = await db
-        .select()
-        .from(schema.computations)
-        .where(
-          and(
-            eq(schema.computations.network, network),
-            or(
-              eq(schema.computations.address, query),
-              eq(schema.computations.payer, query),
-              eq(schema.computations.queueTxSig, query),
-              eq(schema.computations.finalizeTxSig, query)
-            )
-          )
-        )
-        .limit(5);
       results.push(...computations.map((c) => ({ type: "computation", data: c })));
-
-      const programs = await db
-        .select()
-        .from(schema.programs)
-        .where(
-          and(
-            eq(schema.programs.network, network),
-            eq(schema.programs.programId, query)
-          )
-        )
-        .limit(1);
       results.push(...programs.map((p) => ({ type: "program", data: p })));
-
-      const mxes = await db
-        .select()
-        .from(schema.mxeAccounts)
-        .where(
-          and(
-            eq(schema.mxeAccounts.network, network),
-            or(
-              eq(schema.mxeAccounts.address, query),
-              eq(schema.mxeAccounts.mxeProgramId, query)
-            )
-          )
-        )
-        .limit(5);
       results.push(...mxes.map((m) => ({ type: "mxe", data: m })));
     }
 

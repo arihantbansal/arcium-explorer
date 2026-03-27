@@ -68,7 +68,7 @@ export function getExecutingPoolAddress(clusterOffset: number): PublicKey {
   const offsetBuffer = Buffer.alloc(4);
   offsetBuffer.writeUInt32LE(clusterOffset);
   const [pda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("ExecutingPool"), offsetBuffer],
+    [Buffer.from("Execpool"), offsetBuffer],
     ARCIUM_PROGRAM
   );
   return pda;

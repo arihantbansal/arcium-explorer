@@ -1,6 +1,7 @@
 import { eq, and, sql } from "drizzle-orm";
+import { PublicKey } from "@solana/web3.js";
 import type { Network } from "@/types";
-import { deriveClusterOffset, deriveArxNodeOffset } from "@/lib/solana/pda";
+import { deriveClusterOffset, deriveArxNodeOffset, getCompDefAddress } from "@/lib/solana/pda";
 import type {
   ParsedCluster,
   ParsedArxNode,
@@ -128,6 +129,47 @@ export async function upsertMXEAccount(
     });
 }
 
+/**
+ * Resolve mxeProgramId and defOffset for a ComputationDefinition by reverse-
+ * looking up which MXE account owns this definition.
+ *
+ * The CompDef PDA is ["ComputationDefinitionAccount", mxe_program_id, offset],
+ * so we iterate known MXE accounts and their compDefOffsets to find a match.
+ */
+async function resolveCompDefOwnership(
+  address: string,
+  network: Network,
+  db: Awaited<ReturnType<typeof getDb>>["db"],
+  schema: Awaited<ReturnType<typeof getDb>>["schema"]
+): Promise<{ mxeProgramId: string; defOffset: number }> {
+  const mxeRows = await db
+    .select({
+      mxeProgramId: schema.mxeAccounts.mxeProgramId,
+      compDefOffsets: schema.mxeAccounts.compDefOffsets,
+    })
+    .from(schema.mxeAccounts)
+    .where(eq(schema.mxeAccounts.network, network));
+
+  for (const mxe of mxeRows) {
+    const offsets = Array.isArray(mxe.compDefOffsets) ? mxe.compDefOffsets : [];
+    for (const offset of offsets) {
+      try {
+        const derivedAddress = getCompDefAddress(
+          new PublicKey(mxe.mxeProgramId),
+          offset
+        ).toBase58();
+        if (derivedAddress === address) {
+          return { mxeProgramId: mxe.mxeProgramId, defOffset: offset };
+        }
+      } catch {
+        // Invalid pubkey, skip
+      }
+    }
+  }
+
+  return { mxeProgramId: "unknown", defOffset: 0 };
+}
+
 export async function upsertComputationDefinition(
   address: string,
   parsed: ParsedComputationDefinition,
@@ -135,12 +177,37 @@ export async function upsertComputationDefinition(
 ): Promise<void> {
   const { db, schema } = await getDb();
 
+  // Check if we already have a resolved mxeProgramId and defOffset for this address
+  const [existing] = await db
+    .select({
+      mxeProgramId: schema.computationDefinitions.mxeProgramId,
+      defOffset: schema.computationDefinitions.defOffset,
+    })
+    .from(schema.computationDefinitions)
+    .where(
+      and(
+        eq(schema.computationDefinitions.address, address),
+        eq(schema.computationDefinitions.network, network)
+      )
+    )
+    .limit(1);
+
+  let mxeProgramId = existing?.mxeProgramId ?? "unknown";
+  let defOffset = existing?.defOffset ?? 0;
+
+  // Only do the expensive PDA lookup if we haven't resolved it yet
+  if (mxeProgramId === "unknown" || !existing) {
+    const resolved = await resolveCompDefOwnership(address, network, db, schema);
+    mxeProgramId = resolved.mxeProgramId;
+    defOffset = resolved.defOffset;
+  }
+
   await db
     .insert(schema.computationDefinitions)
     .values({
       address,
-      mxeProgramId: parsed.mxeProgramId,
-      defOffset: parsed.defOffset,
+      mxeProgramId,
+      defOffset,
       cuAmount: parsed.cuAmount,
       circuitLen: parsed.circuitLen,
       sourceType: parsed.sourceType,
@@ -150,8 +217,7 @@ export async function upsertComputationDefinition(
     .onConflictDoUpdate({
       target: [schema.computationDefinitions.address, schema.computationDefinitions.network],
       set: {
-        mxeProgramId: parsed.mxeProgramId,
-        defOffset: parsed.defOffset,
+        ...(mxeProgramId !== "unknown" ? { mxeProgramId, defOffset } : {}),
         cuAmount: parsed.cuAmount,
         circuitLen: parsed.circuitLen,
         sourceType: parsed.sourceType,
@@ -203,7 +269,7 @@ export async function upsertComputation(
 
   const baseData = {
     address,
-    computationOffset: parsed.computationOffset,
+    compDefOffset: parsed.compDefOffset,
     clusterOffset,
     payer: parsed.payer,
     mxeProgramId: parsed.mxeProgramId,

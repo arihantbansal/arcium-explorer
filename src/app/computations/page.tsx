@@ -13,7 +13,7 @@ import type { ComputationStatus } from "@/types";
 
 interface ComputationRow {
   address: string;
-  computationOffset: string;
+  compDefOffset: string;
   clusterOffset: number;
   payer: string;
   status: ComputationStatus;
@@ -24,11 +24,11 @@ interface ComputationRow {
 
 const columns: ColumnDef<ComputationRow, unknown>[] = [
   {
-    accessorKey: "computationOffset",
-    header: "Offset",
+    accessorKey: "compDefOffset",
+    header: "Def #",
     cell: ({ getValue }) => (
       <span className="font-mono text-xs text-accent-link">
-        {String(getValue()).slice(0, 12)}...
+        {String(getValue())}
       </span>
     ),
   },

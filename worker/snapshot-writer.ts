@@ -80,14 +80,36 @@ async function writeSnapshot(network: Network): Promise<void> {
 async function aggregatePrograms(network: Network): Promise<void> {
   const { db, schema } = await getDb();
 
-  const mxeRows = await db
-    .select({
-      address: schema.mxeAccounts.address,
-      mxeProgramId: schema.mxeAccounts.mxeProgramId,
-      compDefOffsets: schema.mxeAccounts.compDefOffsets,
-    })
-    .from(schema.mxeAccounts)
-    .where(eq(schema.mxeAccounts.network, network));
+  // Fetch MXE metadata and computation counts in two queries instead of O(N)
+  const [mxeRows, compCounts] = await Promise.all([
+    db
+      .select({
+        address: schema.mxeAccounts.address,
+        mxeProgramId: schema.mxeAccounts.mxeProgramId,
+        compDefOffsets: schema.mxeAccounts.compDefOffsets,
+      })
+      .from(schema.mxeAccounts)
+      .where(eq(schema.mxeAccounts.network, network)),
+    db
+      .select({
+        mxeProgramId: schema.computations.mxeProgramId,
+        count: count(),
+      })
+      .from(schema.computations)
+      .where(
+        and(
+          eq(schema.computations.network, network),
+          eq(schema.computations.isScaffold, false)
+        )
+      )
+      .groupBy(schema.computations.mxeProgramId),
+  ]);
+
+  const countMap = new Map(
+    compCounts
+      .filter((r): r is typeof r & { mxeProgramId: string } => r.mxeProgramId !== null)
+      .map((r) => [r.mxeProgramId, r.count])
+  );
 
   let upserted = 0;
   for (const mxe of mxeRows) {
@@ -95,23 +117,12 @@ async function aggregatePrograms(network: Network): Promise<void> {
       ? mxe.compDefOffsets.length
       : 0;
 
-    const [compCount] = await db
-      .select({ count: count() })
-      .from(schema.computations)
-      .where(
-        and(
-          eq(schema.computations.mxeProgramId, mxe.mxeProgramId),
-          eq(schema.computations.network, network),
-          eq(schema.computations.isScaffold, false)
-        )
-      );
-
     await upsertProgram(
       mxe.mxeProgramId,
       mxe.address,
       network,
       compDefCount,
-      compCount.count
+      countMap.get(mxe.mxeProgramId) ?? 0
     );
     upserted++;
   }

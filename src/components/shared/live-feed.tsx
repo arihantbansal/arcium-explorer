@@ -94,7 +94,7 @@ export function LiveFeed({
                 {truncateAddress(comp.address, 4)}
               </span>
               <span className="font-mono text-xs text-text-secondary">
-                {comp.computationOffset}
+                {comp.compDefOffset}
               </span>
               <span className="truncate font-mono text-xs text-text-muted">
                 {truncateAddress(comp.payer, 4)}

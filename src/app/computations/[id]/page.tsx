@@ -143,8 +143,8 @@ function ComputationDetailContent() {
             </div>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="shrink-0 text-text-muted">Computation Offset</span>
-            <span className="font-mono text-xs truncate min-w-0">{String(comp.computationOffset)}</span>
+            <span className="shrink-0 text-text-muted">Definition #</span>
+            <span className="font-mono text-xs truncate min-w-0">{String(comp.compDefOffset)}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="shrink-0 text-text-muted">Cluster</span>

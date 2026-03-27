@@ -132,7 +132,7 @@ export const computations = pgTable(
   {
     id: serial("id").primaryKey(),
     address: varchar("address", { length: 64 }).notNull(),
-    computationOffset: varchar("computation_offset", { length: 32 }).notNull(),
+    compDefOffset: varchar("comp_def_offset", { length: 32 }).notNull(),
     clusterOffset: bigint("cluster_offset", { mode: "number" }).notNull(),
     payer: varchar("payer", { length: 64 }).notNull(),
     mxeProgramId: varchar("mxe_program_id", { length: 64 }),

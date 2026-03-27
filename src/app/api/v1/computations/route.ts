@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
         whereClause = and(whereClause, eq(computations.clusterOffset, co))!;
       }
     }
-    if (programFilter) {
+    if (programFilter && /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(programFilter)) {
       whereClause = and(whereClause, eq(computations.mxeProgramId, programFilter))!;
     }
 

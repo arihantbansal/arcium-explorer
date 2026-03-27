@@ -15,7 +15,7 @@ export async function GET(
     const { db } = await import("@/lib/db");
     const schema = await import("@/lib/db/schema");
 
-    // Search by address or computation offset
+    // Search by address or comp def offset
     const [computation] = await db
       .select()
       .from(schema.computations)
@@ -24,7 +24,7 @@ export async function GET(
           eq(schema.computations.network, network),
           or(
             eq(schema.computations.address, id),
-            eq(schema.computations.computationOffset, id)
+            eq(schema.computations.compDefOffset, id)
           )
         )
       )
