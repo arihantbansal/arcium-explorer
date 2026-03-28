@@ -1,4 +1,7 @@
 "use client";
+// TanStack Table v8 returns unstable refs incompatible with React Compiler.
+// See: https://github.com/TanStack/table/issues/5567 — fix expected in v9.
+"use no memo";
 
 import {
   useReactTable,
@@ -30,6 +33,7 @@ export function DataTable<TData>({
 }: DataTableProps<TData>) {
   const [sorting, setSorting] = useState<SortingState>([]);
 
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
