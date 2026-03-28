@@ -1,14 +1,15 @@
 import { eq, and, sql } from "drizzle-orm";
 import { PublicKey } from "@solana/web3.js";
 import type { Network } from "@/types";
-import { deriveClusterOffset, deriveArxNodeOffset, getCompDefAddress } from "@/lib/solana/pda";
+import { getCompDefAccAddress } from "@arcium-hq/reader";
+import { deriveClusterOffset, deriveArxNodeOffset } from "@/lib/solana/pda";
 import type {
   ParsedCluster,
   ParsedArxNode,
   ParsedMXEAccount,
   ParsedComputationDefinition,
   ParsedComputation,
-} from "./parsers";
+} from "./sdk-adapter";
 
 // Lazy db import to avoid errors when DATABASE_URL is missing at build time
 async function getDb() {
@@ -168,7 +169,7 @@ async function resolveCompDefOwnership(
     const offsets = Array.isArray(mxe.compDefOffsets) ? mxe.compDefOffsets : [];
     for (const offset of offsets) {
       try {
-        const derivedAddress = getCompDefAddress(
+        const derivedAddress = getCompDefAccAddress(
           new PublicKey(mxe.mxeProgramId),
           offset
         ).toBase58();

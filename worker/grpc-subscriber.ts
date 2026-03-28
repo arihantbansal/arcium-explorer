@@ -1,9 +1,11 @@
 import Client from "@triton-one/yellowstone-grpc";
-import { ARCIUM_PROGRAM_ID } from "@/lib/constants";
+import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
 import { createLogger } from "./logger";
 import type { Network } from "@/types";
 import { PublicKey } from "@solana/web3.js";
+
+const ARCIUM_PROGRAM_ID = ARCIUM_PROGRAM.toBase58();
 
 const log = createLogger("grpc");
 

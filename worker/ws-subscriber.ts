@@ -1,12 +1,10 @@
-import { Connection, PublicKey } from "@solana/web3.js";
-import { ARCIUM_PROGRAM_ID } from "@/lib/constants";
+import { Connection } from "@solana/web3.js";
+import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
 import { createLogger } from "./logger";
 import type { Network } from "@/types";
 
 const log = createLogger("ws");
-
-const ARCIUM_PROGRAM = new PublicKey(ARCIUM_PROGRAM_ID);
 
 export interface WsSubscriberConfig {
   rpcUrl: string;
@@ -145,7 +143,7 @@ export class WsSubscriber {
         this.resetWatchdog();
 
         log.info("WS subscription active", {
-          program: ARCIUM_PROGRAM_ID,
+          program: ARCIUM_PROGRAM.toBase58(),
           network: this.network,
           subscriptionId: this.subscriptionId,
         });

@@ -1,15 +1,11 @@
 import { Connection } from "@solana/web3.js";
 import { eq } from "drizzle-orm";
-import { ARCIUM_PROGRAM_ID } from "@/lib/constants";
-import { DISCRIMINATORS, type AccountTypeName } from "@/lib/indexer/discriminators";
+import { getDiscriminatorBytes, ARCIUM_PROGRAM, type AccountTypeName } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
 import { createLogger } from "./logger";
 import type { Network } from "@/types";
-import { PublicKey } from "@solana/web3.js";
 
 const log = createLogger("polling");
-
-const ARCIUM_PROGRAM = new PublicKey(ARCIUM_PROGRAM_ID);
 
 const ENTITY_TYPES: AccountTypeName[] = [
   "Cluster",
@@ -100,7 +96,7 @@ async function pollEntityType(
   entityType: AccountTypeName,
   network: Network
 ): Promise<{ processed: number; skipped: number }> {
-  const discriminator = DISCRIMINATORS[entityType];
+  const discriminator = getDiscriminatorBytes(entityType);
 
   const accounts = await fetchWithRetry(connection, discriminator);
 

@@ -1,11 +1,11 @@
-import { identifyAccountType } from "@/lib/indexer/discriminators";
 import {
-  parseClusterAccount,
-  parseArxNodeAccount,
-  parseMXEAccount,
-  parseComputationDefinitionAccount,
-  parseComputationAccount,
-} from "@/lib/indexer/parsers";
+  identifyAccountType,
+  decodeCluster,
+  decodeArxNode,
+  decodeMXEAccount,
+  decodeComputationDefinition,
+  decodeComputation,
+} from "@/lib/indexer/sdk-adapter";
 import {
   upsertCluster,
   upsertArxNode,
@@ -58,7 +58,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
   try {
     switch (accountType) {
       case "Cluster": {
-        const parsed = parseClusterAccount(buf);
+        const parsed = decodeCluster(buf);
         if (parsed) {
           await retry(() => upsertCluster(address, parsed, network, slot));
           log.debug("Upserted cluster", { address });
@@ -66,7 +66,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
         break;
       }
       case "ArxNode": {
-        const parsed = parseArxNodeAccount(buf);
+        const parsed = decodeArxNode(buf);
         if (parsed) {
           await retry(() => upsertArxNode(address, parsed, network, slot));
           log.debug("Upserted arx node", { address });
@@ -74,7 +74,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
         break;
       }
       case "MXEAccount": {
-        const parsed = parseMXEAccount(buf);
+        const parsed = decodeMXEAccount(buf);
         if (parsed) {
           await retry(() => upsertMXEAccount(address, parsed, network, slot));
           log.debug("Upserted MXE account", { address });
@@ -82,7 +82,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
         break;
       }
       case "ComputationDefinitionAccount": {
-        const parsed = parseComputationDefinitionAccount(buf);
+        const parsed = decodeComputationDefinition(buf);
         if (parsed) {
           await retry(() => upsertComputationDefinition(address, parsed, network));
           log.debug("Upserted computation definition", { address });
@@ -90,7 +90,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
         break;
       }
       case "ComputationAccount": {
-        const parsed = parseComputationAccount(buf);
+        const parsed = decodeComputation(buf);
         if (parsed) {
           await retry(() => upsertComputation(address, parsed, network));
           log.debug("Upserted computation", { address });
