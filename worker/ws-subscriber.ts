@@ -1,7 +1,7 @@
 import { Connection } from "@solana/web3.js";
 import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import { sleep } from "./utils";
 import type { Network } from "@/types";
 

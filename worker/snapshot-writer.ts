@@ -1,5 +1,5 @@
 import { count, eq, and, lt } from "drizzle-orm";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import { upsertProgram } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
 

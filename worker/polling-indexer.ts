@@ -4,7 +4,7 @@ import { db } from "@/lib/db";
 import * as schema from "@/lib/db/schema";
 import { getDiscriminatorBytes, ARCIUM_PROGRAM, type AccountTypeName } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import { withTimeout, sleep } from "./utils";
 import type { Network } from "@/types";
 

@@ -1,4 +1,5 @@
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
+import { retry } from "./utils";
 import { PollingIndexer } from "./polling-indexer";
 import { GrpcSubscriber } from "./grpc-subscriber";
 import { WsSubscriber } from "./ws-subscriber";
@@ -46,8 +47,8 @@ async function main(): Promise<void> {
     grpcEndpoint: MAINNET_GRPC_ENDPOINT,
   });
 
-  // Verify DB connection before anything else
-  await verifyDatabase();
+  // Verify DB connection before anything else (retry for container startup races)
+  await retry(verifyDatabase, 5, 2000);
 
   const activeNetworks: Network[] = [];
 
@@ -84,6 +85,7 @@ async function main(): Promise<void> {
       rpcUrl: MAINNET_RPC_URL,
       network: "mainnet",
       intervalMs: MAINNET_POLL_INTERVAL,
+      startDelayMs: 10_000,
     });
     mainnetPoller.start();
     services.push(mainnetPoller);

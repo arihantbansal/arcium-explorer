@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, and, desc } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -58,9 +58,6 @@ export async function GET(
       { network }
     );
   } catch (error) {
-    console.error("MXE detail error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch MXE"
-    );
+    return handleApiError(error, "Failed to fetch MXE");
   }
 }

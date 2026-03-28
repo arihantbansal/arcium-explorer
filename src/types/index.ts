@@ -2,6 +2,8 @@ export type Network = "devnet" | "mainnet";
 
 export type ComputationStatus = "queued" | "executing" | "finalized" | "failed";
 
+export type SearchResultType = "cluster" | "node" | "computation" | "program" | "mxe" | "definition";
+
 export interface Cluster {
   id: number;
   address: string;

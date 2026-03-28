@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, and } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -32,9 +32,6 @@ export async function GET(
 
     return jsonResponse(def, { network });
   } catch (error) {
-    console.error("Definition detail error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch definition"
-    );
+    return handleApiError(error, "Failed to fetch definition");
   }
 }

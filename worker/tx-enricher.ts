@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import type { Network } from "@/types";
 
 const log = createLogger("tx-enricher");
@@ -39,6 +39,9 @@ export interface TxEnricherConfig {
   initialDelayMs?: number;
 }
 
+// Max consecutive failures before marking a row as unenrichable (-1 sentinel)
+const MAX_ENRICH_FAILURES = 3;
+
 export class TxEnricher {
   private connection: Connection;
   private network: Network;
@@ -47,6 +50,7 @@ export class TxEnricher {
   private rateLimitMs: number;
   private initialDelayMs: number;
   private running = false;
+  private failureCounts = new Map<string, number>();
 
   constructor(config: TxEnricherConfig) {
     this.connection = new Connection(config.rpcUrl, { commitment: "confirmed" });
@@ -297,12 +301,37 @@ export class TxEnricher {
         }
 
         // Rate limit between RPC calls
+        this.failureCounts.delete(row.address);
         await this.sleep(this.rateLimitMs);
       } catch (error) {
-        log.error("Failed to enrich computation", {
-          address: row.address,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        const count = (this.failureCounts.get(row.address) ?? 0) + 1;
+        this.failureCounts.set(row.address, count);
+
+        if (count >= MAX_ENRICH_FAILURES) {
+          // Mark as permanently unenrichable so the query skips it next cycle
+          log.warn("Marking computation as unenrichable after repeated failures", {
+            address: row.address,
+            failures: count,
+          });
+          try {
+            await db
+              .update(schema.computations)
+              .set({ callbackErrorCode: -1, updatedAt: new Date() })
+              .where(eq(schema.computations.id, row.id));
+          } catch (dbErr) {
+            log.error("Failed to mark unenrichable", {
+              address: row.address,
+              error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+            });
+          }
+          this.failureCounts.delete(row.address);
+        } else {
+          log.error("Failed to enrich computation", {
+            address: row.address,
+            attempt: count,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 

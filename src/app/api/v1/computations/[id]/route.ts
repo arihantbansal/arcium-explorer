@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, and, or } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -36,9 +36,6 @@ export async function GET(
 
     return jsonResponse(computation, { network });
   } catch (error) {
-    console.error("Computation detail error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch computation"
-    );
+    return handleApiError(error, "Failed to fetch computation");
   }
 }

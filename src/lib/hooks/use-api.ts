@@ -13,13 +13,18 @@ import type {
   MxeAccount,
   ComputationDefinition,
   NetworkSnapshot,
+  SearchResultType,
 } from "@/types";
 
 async function fetchApi<T>(path: string, network: Network): Promise<ApiResponse<T>> {
   const separator = path.includes("?") ? "&" : "?";
   const res = await fetch(`${path}${separator}network=${network}`);
   if (!res.ok) throw new Error(`API error: ${res.status}`);
-  return res.json();
+  try {
+    return await res.json();
+  } catch {
+    throw new Error(`Invalid JSON response from ${path}`);
+  }
 }
 
 export function useStats() {
@@ -148,10 +153,10 @@ export function useDefinition(address: string) {
 
 export function useSearch(query: string) {
   const network = useNetwork();
-  return useQuery<ApiResponse<Array<{ type: string; data: unknown }>>>({
+  return useQuery<ApiResponse<Array<{ type: SearchResultType; data: unknown }>>>({
     queryKey: ["search", network, query],
     queryFn: () =>
-      fetchApi<Array<{ type: string; data: unknown }>>(`/api/v1/search?q=${encodeURIComponent(query)}`, network),
+      fetchApi<Array<{ type: SearchResultType; data: unknown }>>(`/api/v1/search?q=${encodeURIComponent(query)}`, network),
     enabled: query.length > 0,
   });
 }

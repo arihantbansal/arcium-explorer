@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, desc, count } from "drizzle-orm";
-import { getNetwork, getPagination, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, getPagination, jsonResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -27,9 +27,6 @@ export async function GET(req: NextRequest) {
 
     return jsonResponse(data, { network, page, limit, total: totalResult.count });
   } catch (error) {
-    console.error("Definitions API error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch definitions"
-    );
+    return handleApiError(error, "Failed to fetch definitions");
   }
 }

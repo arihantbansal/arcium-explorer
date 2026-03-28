@@ -14,7 +14,7 @@ import {
   upsertComputation,
 } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import { retry } from "./utils";
 
 const log = createLogger("processor");

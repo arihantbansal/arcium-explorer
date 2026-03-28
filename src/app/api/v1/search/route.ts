@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, or } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
+import type { SearchResultType } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const schema = await import("@/lib/db/schema");
 
     const results: {
-      type: string;
+      type: SearchResultType;
       data: unknown;
     }[] = [];
 
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
           )
         )
         .limit(5);
-      results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
+      results.push(...clusters.map((c) => ({ type: "cluster" as const, data: c })));
     }
 
     if (isPubkey) {
@@ -126,12 +127,12 @@ export async function GET(req: NextRequest) {
           .limit(5),
       ]);
 
-      results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
-      results.push(...nodes.map((n) => ({ type: "node", data: n })));
-      results.push(...computations.map((c) => ({ type: "computation", data: c })));
-      results.push(...programs.map((p) => ({ type: "program", data: p })));
-      results.push(...mxes.map((m) => ({ type: "mxe", data: m })));
-      results.push(...definitions.map((d) => ({ type: "definition", data: d })));
+      results.push(...clusters.map((c) => ({ type: "cluster" as const, data: c })));
+      results.push(...nodes.map((n) => ({ type: "node" as const, data: n })));
+      results.push(...computations.map((c) => ({ type: "computation" as const, data: c })));
+      results.push(...programs.map((p) => ({ type: "program" as const, data: p })));
+      results.push(...mxes.map((m) => ({ type: "mxe" as const, data: m })));
+      results.push(...definitions.map((d) => ({ type: "definition" as const, data: d })));
     }
 
     // Search nodes by offset
@@ -146,14 +147,11 @@ export async function GET(req: NextRequest) {
           )
         )
         .limit(5);
-      results.push(...nodes.map((n) => ({ type: "node", data: n })));
+      results.push(...nodes.map((n) => ({ type: "node" as const, data: n })));
     }
 
     return jsonResponse(results, { network, total: results.length });
   } catch (error) {
-    console.error("Search error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Search failed"
-    );
+    return handleApiError(error, "Search failed");
   }
 }

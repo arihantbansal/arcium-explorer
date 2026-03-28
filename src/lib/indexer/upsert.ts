@@ -144,12 +144,16 @@ export async function upsertMXEAccount(
     });
 }
 
+// CompDef ownership is deterministic (PDA-derived) — cache permanently.
+const compDefOwnerCache = new Map<string, { mxeProgramId: string; defOffset: number }>();
+
 /**
  * Resolve mxeProgramId and defOffset for a ComputationDefinition by reverse-
  * looking up which MXE account owns this definition.
  *
  * The CompDef PDA is ["ComputationDefinitionAccount", mxe_program_id, offset],
  * so we iterate known MXE accounts and their compDefOffsets to find a match.
+ * Results are cached for O(1) subsequent lookups.
  */
 async function resolveCompDefOwnership(
   address: string,
@@ -157,6 +161,10 @@ async function resolveCompDefOwnership(
   db: Awaited<ReturnType<typeof getDb>>["db"],
   schema: Awaited<ReturnType<typeof getDb>>["schema"]
 ): Promise<{ mxeProgramId: string; defOffset: number }> {
+  const cacheKey = `${address}:${network}`;
+  const cached = compDefOwnerCache.get(cacheKey);
+  if (cached) return cached;
+
   const mxeRows = await db
     .select({
       mxeProgramId: schema.mxeAccounts.mxeProgramId,
@@ -174,7 +182,9 @@ async function resolveCompDefOwnership(
           offset
         ).toBase58();
         if (derivedAddress === address) {
-          return { mxeProgramId: mxe.mxeProgramId, defOffset: offset };
+          const result = { mxeProgramId: mxe.mxeProgramId, defOffset: offset };
+          compDefOwnerCache.set(cacheKey, result);
+          return result;
         }
       } catch {
         // Invalid pubkey, skip

@@ -1,7 +1,7 @@
 import Client from "@triton-one/yellowstone-grpc";
 import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
 import { sleep, withTimeout } from "./utils";
 import type { Network } from "@/types";
 import { PublicKey } from "@solana/web3.js";
@@ -112,6 +112,8 @@ export class GrpcSubscriber {
     this.reconnectDelay = 1000;
 
     await new Promise<void>((resolve, reject) => {
+      let settled = false;
+
       stream.on("data", async (update: Record<string, unknown>) => {
         try {
           if (update.account) {
@@ -156,17 +158,23 @@ export class GrpcSubscriber {
       });
 
       stream.on("error", (err: Error) => {
+        if (settled) return;
+        settled = true;
         log.error("gRPC stream error", { error: err.message });
         this.client = null;
         reject(err);
       });
 
       stream.on("end", () => {
+        if (settled) return;
+        settled = true;
         log.debug("gRPC stream ended");
         resolve();
       });
 
       stream.on("close", () => {
+        if (settled) return;
+        settled = true;
         log.debug("gRPC stream closed");
         resolve();
       });
