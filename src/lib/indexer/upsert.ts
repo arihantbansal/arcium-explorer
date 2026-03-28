@@ -3,6 +3,9 @@ import { PublicKey } from "@solana/web3.js";
 import type { Network } from "@/types";
 import { getCompDefAccAddress } from "@arcium-hq/reader";
 import { deriveClusterOffset, deriveArxNodeOffset } from "@/lib/solana/pda";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("upsert");
 import type {
   ParsedCluster,
   ParsedArxNode,
@@ -191,8 +194,12 @@ async function resolveCompDefOwnership(
           compDefOwnerCache.set(cacheKey, result);
           return result;
         }
-      } catch {
-        // Invalid pubkey, skip
+      } catch (err) {
+        log.warn("CompDef PDA derivation failed", {
+          mxeProgramId: mxe.mxeProgramId,
+          offset,
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
   }
