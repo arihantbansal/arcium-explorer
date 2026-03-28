@@ -134,6 +134,7 @@ export class SnapshotWriter {
   private intervalMs: number;
   private networks: Network[];
   private timer: ReturnType<typeof setInterval> | null = null;
+  private delayTimer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
 
   constructor(intervalMs: number, networks: Network[]) {
@@ -151,40 +152,42 @@ export class SnapshotWriter {
     });
 
     // Initial snapshot after a short delay (let first poll complete)
-    setTimeout(() => {
+    this.delayTimer = setTimeout(() => {
+      this.delayTimer = null;
       if (!this.running) return;
       this.writeAll().catch((err) =>
-        log.error("Initial snapshot failed", { error: String(err) })
+        log.error("Initial snapshot failed", { error: String(err) }),
       );
     }, 60_000);
 
     this.timer = setInterval(() => {
       if (!this.running) return;
       this.writeAll().catch((err) =>
-        log.error("Snapshot cycle failed", { error: String(err) })
+        log.error("Snapshot cycle failed", { error: String(err) }),
       );
     }, this.intervalMs);
   }
 
   private async writeAll(): Promise<void> {
-    for (const network of this.networks) {
-      try {
-        await writeSnapshot(network);
-      } catch (error) {
-        log.error("Snapshot write failed", {
-          network,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-      try {
-        await aggregatePrograms(network);
-      } catch (error) {
-        log.error("Program aggregation failed", {
-          network,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    // Run snapshot + aggregation in parallel per network
+    await Promise.all(
+      this.networks.map(async (network) => {
+        await Promise.all([
+          writeSnapshot(network).catch((error) =>
+            log.error("Snapshot write failed", {
+              network,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          ),
+          aggregatePrograms(network).catch((error) =>
+            log.error("Program aggregation failed", {
+              network,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          ),
+        ]);
+      }),
+    );
 
     // Trim old snapshots (run once per cycle, covers all networks)
     try {
@@ -202,6 +205,10 @@ export class SnapshotWriter {
 
   stop(): void {
     this.running = false;
+    if (this.delayTimer) {
+      clearTimeout(this.delayTimer);
+      this.delayTimer = null;
+    }
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

@@ -2,6 +2,7 @@ import { Connection } from "@solana/web3.js";
 import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
 import { createLogger } from "./logger";
+import { sleep } from "./utils";
 import type { Network } from "@/types";
 
 const log = createLogger("ws");
@@ -24,6 +25,7 @@ export class WsSubscriber {
   private connection: Connection | null = null;
   private subscriptionId: number | null = null;
   private watchdogTimer: ReturnType<typeof setTimeout> | null = null;
+  private teardownResolve: (() => void) | null = null;
   private accountsProcessed = 0;
 
   constructor(config: WsSubscriberConfig) {
@@ -53,10 +55,10 @@ export class WsSubscriber {
           error: msg,
           retryInMs: this.reconnectDelay,
         });
-        await this.sleep(this.reconnectDelay);
+        await sleep(this.reconnectDelay);
         this.reconnectDelay = Math.min(
           this.reconnectDelay * 2,
-          this.MAX_RECONNECT_DELAY
+          this.MAX_RECONNECT_DELAY,
         );
       }
     }
@@ -94,16 +96,25 @@ export class WsSubscriber {
     if (this.connection && this.subscriptionId !== null) {
       this.connection
         .removeAccountChangeListener(this.subscriptionId)
-        .catch(() => {});
+        .catch((err) => log.debug("Failed to remove WS listener", {
+          error: err instanceof Error ? err.message : String(err),
+        }));
       this.subscriptionId = null;
     }
     this.connection = null;
+
+    // Signal subscribe() Promise to resolve (replaces polling interval)
+    if (this.teardownResolve) {
+      this.teardownResolve();
+      this.teardownResolve = null;
+    }
   }
 
   private subscribe(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       try {
         this.connection = this.createConnection();
+        this.teardownResolve = resolve;
 
         this.subscriptionId = this.connection.onProgramAccountChange(
           ARCIUM_PROGRAM,
@@ -135,10 +146,9 @@ export class WsSubscriber {
               });
             }
           },
-          "confirmed"
+          "confirmed",
         );
 
-        // Reset reconnect delay on successful subscription
         this.reconnectDelay = 1000;
         this.resetWatchdog();
 
@@ -147,16 +157,8 @@ export class WsSubscriber {
           network: this.network,
           subscriptionId: this.subscriptionId,
         });
-
-        // The subscription stays open until teardown is called.
-        // We resolve when teardown nulls the connection (watchdog or stop).
-        const check = setInterval(() => {
-          if (this.connection === null) {
-            clearInterval(check);
-            resolve();
-          }
-        }, 1000);
       } catch (error) {
+        this.teardownResolve = null;
         reject(error);
       }
     });
@@ -166,9 +168,5 @@ export class WsSubscriber {
     this.running = false;
     this.teardown();
     log.info("WS subscriber stop requested");
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

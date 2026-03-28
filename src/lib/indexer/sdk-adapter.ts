@@ -7,7 +7,7 @@
  */
 import { BorshAccountsCoder } from "@coral-xyz/anchor";
 import { ARCIUM_IDL, ARCIUM_ADDR } from "@arcium-hq/client";
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 
 // Single coder instance — constructed from IDL, no provider needed
 const coder = new BorshAccountsCoder(ARCIUM_IDL);
@@ -305,7 +305,7 @@ export function decodeComputation(
       status = "finalized";
     }
 
-    const isScaffold = payer === "11111111111111111111111111111111";
+    const isScaffold = payer === SystemProgram.programId.toBase58();
 
     return {
       compDefOffset,

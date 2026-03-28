@@ -30,29 +30,28 @@ export async function GET(
       return errorResponse("MXE not found", 404);
     }
 
-    // Fetch comp defs
-    const compDefs = await db
-      .select()
-      .from(schema.computationDefinitions)
-      .where(
-        and(
-          eq(schema.computationDefinitions.mxeProgramId, mxe.mxeProgramId),
-          eq(schema.computationDefinitions.network, network)
+    const [compDefs, scaffoldComputations] = await Promise.all([
+      db
+        .select()
+        .from(schema.computationDefinitions)
+        .where(
+          and(
+            eq(schema.computationDefinitions.mxeProgramId, mxe.mxeProgramId),
+            eq(schema.computationDefinitions.network, network),
+          ),
+        ),
+      db
+        .select()
+        .from(schema.computations)
+        .where(
+          and(
+            eq(schema.computations.mxeProgramId, mxe.mxeProgramId),
+            eq(schema.computations.network, network),
+            eq(schema.computations.isScaffold, true),
+          ),
         )
-      );
-
-    // Fetch scaffold computations for this MXE
-    const scaffoldComputations = await db
-      .select()
-      .from(schema.computations)
-      .where(
-        and(
-          eq(schema.computations.mxeProgramId, mxe.mxeProgramId),
-          eq(schema.computations.network, network),
-          eq(schema.computations.isScaffold, true)
-        )
-      )
-      .orderBy(desc(schema.computations.createdAt));
+        .orderBy(desc(schema.computations.createdAt)),
+    ]);
 
     return jsonResponse(
       { ...mxe, computationDefinitions: compDefs, scaffoldComputations },

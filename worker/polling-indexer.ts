@@ -1,39 +1,29 @@
 import { Connection } from "@solana/web3.js";
 import { eq } from "drizzle-orm";
+import { db } from "@/lib/db";
+import * as schema from "@/lib/db/schema";
 import { getDiscriminatorBytes, ARCIUM_PROGRAM, type AccountTypeName } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
 import { createLogger } from "./logger";
+import { withTimeout, sleep } from "./utils";
 import type { Network } from "@/types";
 
 const log = createLogger("polling");
 
-const ENTITY_TYPES: AccountTypeName[] = [
+// Entity types that can be polled in parallel (small, always re-processed)
+const PARALLEL_TYPES: AccountTypeName[] = [
   "Cluster",
   "ArxNode",
   "MXEAccount",
   "ComputationDefinitionAccount",
-  "ComputationAccount",
 ];
 
-// Entity types small enough to always re-process (may have changed on-chain)
-const ALWAYS_REPROCESS: Set<AccountTypeName> = new Set([
-  "Cluster",
-  "ArxNode",
-  "MXEAccount",
-  "ComputationDefinitionAccount",
-]);
+// Large entity type polled separately (only new accounts processed)
+const SEQUENTIAL_TYPES: AccountTypeName[] = ["ComputationAccount"];
 
 const RPC_TIMEOUT_MS = 120_000;
 
-// Lazy db import to avoid errors when DATABASE_URL is missing at build time
-async function getDb() {
-  const { db } = await import("@/lib/db");
-  const schema = await import("@/lib/db/schema");
-  return { db, schema };
-}
-
-async function getKnownAddresses(entityType: AccountTypeName, network: Network): Promise<Set<string>> {
-  const { db, schema } = await getDb();
+function getTable(entityType: AccountTypeName) {
   const tableMap = {
     Cluster: schema.clusters,
     ArxNode: schema.arxNodes,
@@ -41,51 +31,42 @@ async function getKnownAddresses(entityType: AccountTypeName, network: Network):
     ComputationDefinitionAccount: schema.computationDefinitions,
     ComputationAccount: schema.computations,
   } as const;
-  const table = tableMap[entityType];
-  const rows = await db.select({ address: table.address }).from(table).where(eq(table.network, network));
-  return new Set(rows.map(r => r.address));
+  return tableMap[entityType];
 }
 
-async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: ReturnType<typeof setTimeout>;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error(`RPC timeout after ${ms}ms`)), ms);
-  });
-  try {
-    return await Promise.race([promise, timeout]);
-  } finally {
-    clearTimeout(timer!);
-  }
+async function getKnownAddresses(entityType: AccountTypeName, network: Network): Promise<Set<string>> {
+  const table = getTable(entityType);
+  const rows = await db.select({ address: table.address }).from(table).where(eq(table.network, network));
+  return new Set(rows.map(r => r.address));
 }
 
 async function fetchWithRetry(
   connection: Connection,
   discriminator: Buffer,
-  retries = 3
+  retries = 3,
 ) {
   for (let attempt = 1; attempt <= retries; attempt++) {
     try {
       return await withTimeout(
         connection.getProgramAccounts(ARCIUM_PROGRAM, {
-          filters: [
-            {
-              memcmp: {
-                offset: 0,
-                bytes: discriminator.toString("base64"),
-                encoding: "base64",
-              },
+          filters: [{
+            memcmp: {
+              offset: 0,
+              bytes: discriminator.toString("base64"),
+              encoding: "base64",
             },
-          ],
+          }],
           commitment: "confirmed",
         }),
-        RPC_TIMEOUT_MS
+        RPC_TIMEOUT_MS,
+        "getProgramAccounts",
       );
     } catch (err) {
       if (attempt === retries) throw err;
       log.warn(`getProgramAccounts attempt ${attempt} failed, retrying`, {
         error: err instanceof Error ? err.message : String(err),
       });
-      await new Promise((r) => setTimeout(r, 1000 * attempt));
+      await sleep(1000 * attempt);
     }
   }
   throw new Error("unreachable");
@@ -94,15 +75,14 @@ async function fetchWithRetry(
 async function pollEntityType(
   connection: Connection,
   entityType: AccountTypeName,
-  network: Network
+  network: Network,
+  onlyNew: boolean,
 ): Promise<{ processed: number; skipped: number }> {
   const discriminator = getDiscriminatorBytes(entityType);
-
   const accounts = await fetchWithRetry(connection, discriminator);
 
-  // For large entity types (ComputationAccount), only process NEW accounts
   let knownAddresses: Set<string> | null = null;
-  if (!ALWAYS_REPROCESS.has(entityType)) {
+  if (onlyNew) {
     knownAddresses = await getKnownAddresses(entityType, network);
   }
 
@@ -111,7 +91,7 @@ async function pollEntityType(
   for (const { pubkey, account } of accounts) {
     const address = pubkey.toBase58();
 
-    if (knownAddresses && knownAddresses.has(address)) {
+    if (knownAddresses?.has(address)) {
       skipped++;
       continue;
     }
@@ -140,6 +120,7 @@ export class PollingIndexer {
   private intervalMs: number;
   private startDelayMs: number;
   private timer: ReturnType<typeof setInterval> | null = null;
+  private delayTimer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
   private polling = false;
 
@@ -160,14 +141,29 @@ export class PollingIndexer {
     try {
       const results: Record<string, { processed: number; skipped: number }> = {};
 
-      for (const entityType of ENTITY_TYPES) {
+      // Poll small entity types in parallel (always re-process all)
+      const parallelResults = await Promise.all(
+        PARALLEL_TYPES.map(async (entityType) => {
+          try {
+            return { entityType, result: await pollEntityType(this.connection, entityType, this.network, false) };
+          } catch (error) {
+            log.error(`Failed to poll ${entityType}`, {
+              network: this.network,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            return { entityType, result: { processed: 0, skipped: 0 } };
+          }
+        }),
+      );
+      for (const { entityType, result } of parallelResults) {
+        results[entityType] = result;
+      }
+
+      // Poll large entity types sequentially (only new accounts)
+      for (const entityType of SEQUENTIAL_TYPES) {
         if (!this.running) break;
         try {
-          results[entityType] = await pollEntityType(
-            this.connection,
-            entityType,
-            this.network
-          );
+          results[entityType] = await pollEntityType(this.connection, entityType, this.network, true);
         } catch (error) {
           log.error(`Failed to poll ${entityType}`, {
             network: this.network,
@@ -203,22 +199,22 @@ export class PollingIndexer {
     });
 
     const beginPolling = () => {
-      // Run immediately, then on interval
       this.pollOnce().catch((err) =>
-        log.error("Initial poll failed", { error: String(err) })
+        log.error("Initial poll failed", { error: String(err) }),
       );
 
       this.timer = setInterval(() => {
         if (!this.running) return;
         this.pollOnce().catch((err) =>
-          log.error("Poll cycle failed", { error: String(err) })
+          log.error("Poll cycle failed", { error: String(err) }),
         );
       }, this.intervalMs);
     };
 
     if (this.startDelayMs > 0) {
       log.info("Delaying first poll", { network: this.network, delayMs: this.startDelayMs });
-      setTimeout(() => {
+      this.delayTimer = setTimeout(() => {
+        this.delayTimer = null;
         if (this.running) beginPolling();
       }, this.startDelayMs);
     } else {
@@ -228,6 +224,10 @@ export class PollingIndexer {
 
   stop(): void {
     this.running = false;
+    if (this.delayTimer) {
+      clearTimeout(this.delayTimer);
+      this.delayTimer = null;
+    }
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

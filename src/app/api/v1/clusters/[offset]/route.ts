@@ -20,31 +20,21 @@ export async function GET(
     const { db } = await import("@/lib/db");
     const schema = await import("@/lib/db/schema");
 
-    const [cluster] = await db
-      .select()
-      .from(schema.clusters)
-      .where(
-        and(
-          eq(schema.clusters.offset, offset),
-          eq(schema.clusters.network, network)
-        )
-      )
-      .limit(1);
+    const [[cluster], nodes] = await Promise.all([
+      db
+        .select()
+        .from(schema.clusters)
+        .where(and(eq(schema.clusters.offset, offset), eq(schema.clusters.network, network)))
+        .limit(1),
+      db
+        .select()
+        .from(schema.arxNodes)
+        .where(and(eq(schema.arxNodes.clusterOffset, offset), eq(schema.arxNodes.network, network))),
+    ]);
 
     if (!cluster) {
       return errorResponse("Cluster not found", 404);
     }
-
-    // Fetch nodes in this cluster
-    const nodes = await db
-      .select()
-      .from(schema.arxNodes)
-      .where(
-        and(
-          eq(schema.arxNodes.clusterOffset, offset),
-          eq(schema.arxNodes.network, network)
-        )
-      );
 
     return jsonResponse(
       { ...cluster, nodes },

@@ -15,11 +15,9 @@ import {
 } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
 import { createLogger } from "./logger";
+import { retry } from "./utils";
 
 const log = createLogger("processor");
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 500;
 
 export interface AccountUpdate {
   address: string;
@@ -27,18 +25,6 @@ export interface AccountUpdate {
   network: Network;
   /** Solana slot of this account update — used to prevent older data overwriting newer */
   slot?: number;
-}
-
-async function retry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (attempt === retries) throw error;
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
-    }
-  }
-  throw new Error("unreachable");
 }
 
 /**
