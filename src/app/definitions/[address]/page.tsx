@@ -18,7 +18,7 @@ function DefinitionDetailContent() {
   const def = response?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading definition...</div>;
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading definition\u2026</div>;
   }
 
   if (!def) {
@@ -83,7 +83,7 @@ function DefinitionDetailContent() {
 
 export default function DefinitionDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <DefinitionDetailContent />
     </Suspense>
   );

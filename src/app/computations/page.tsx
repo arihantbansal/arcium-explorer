@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useComputations } from "@/lib/hooks/use-api";
 import { useNetwork } from "@/lib/hooks/use-network";
@@ -85,8 +85,19 @@ function ComputationsContent() {
   const network = useNetwork();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<string>(
-    searchParams.get("status") || "all"
+  const statusFilter = searchParams.get("status") || "all";
+
+  const setStatusFilter = useCallback(
+    (status: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (status === "all") {
+        params.delete("status");
+      } else {
+        params.set("status", status);
+      }
+      router.replace(`/computations?${params.toString()}`);
+    },
+    [searchParams, router]
   );
 
   const { data: response, isLoading } = useComputations(1, 50, {
@@ -125,7 +136,7 @@ function ComputationsContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading computations...
+          Loading computations\u2026
         </div>
       ) : (
         <DataTable
@@ -142,7 +153,7 @@ function ComputationsContent() {
 
 export default function ComputationsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ComputationsContent />
     </Suspense>
   );

@@ -78,7 +78,7 @@ function ClustersContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading clusters...
+          Loading clusters\u2026
         </div>
       ) : (
         <DataTable
@@ -95,7 +95,7 @@ function ClustersContent() {
 
 export default function ClustersPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ClustersContent />
     </Suspense>
   );

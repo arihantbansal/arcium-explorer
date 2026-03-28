@@ -61,7 +61,7 @@ function ProgramsContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading programs...
+          Loading programs\u2026
         </div>
       ) : (
         <DataTable
@@ -78,7 +78,7 @@ function ProgramsContent() {
 
 export default function ProgramsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ProgramsContent />
     </Suspense>
   );

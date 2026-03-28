@@ -84,7 +84,7 @@ function NodesContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading nodes...
+          Loading nodes\u2026
         </div>
       ) : (
         <DataTable
@@ -101,7 +101,7 @@ function NodesContent() {
 
 export default function NodesPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <NodesContent />
     </Suspense>
   );

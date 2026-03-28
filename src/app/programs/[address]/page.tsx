@@ -26,7 +26,7 @@ function ProgramDetailContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading program...
+        Loading program\u2026
       </div>
     );
   }
@@ -110,7 +110,7 @@ function ProgramDetailContent() {
 
 export default function ProgramDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ProgramDetailContent />
     </Suspense>
   );

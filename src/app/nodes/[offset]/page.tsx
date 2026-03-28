@@ -20,7 +20,7 @@ function NodeDetailContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading node...
+        Loading node\u2026
       </div>
     );
   }
@@ -119,7 +119,7 @@ function NodeDetailContent() {
 
 export default function NodeDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <NodeDetailContent />
     </Suspense>
   );

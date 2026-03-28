@@ -28,7 +28,7 @@ function ClusterDetailContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading cluster...
+        Loading cluster\u2026
       </div>
     );
   }
@@ -145,7 +145,7 @@ function ClusterDetailContent() {
 
 export default function ClusterDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ClusterDetailContent />
     </Suspense>
   );

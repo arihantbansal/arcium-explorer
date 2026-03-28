@@ -8,6 +8,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { formatTime } from "@/lib/utils";
 
 interface ThroughputChartProps {
   data: Array<{
@@ -27,11 +28,7 @@ export function ThroughputChart({ data }: ThroughputChartProps) {
   }
 
   const chartData = data.map((d) => ({
-    time: new Date(d.timestamp).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }),
+    time: formatTime(d.timestamp),
     cpm: d.computationsPerMin || 0,
     nodes: d.activeNodes || 0,
   }));
@@ -47,23 +44,23 @@ export function ThroughputChart({ data }: ThroughputChartProps) {
         </defs>
         <XAxis
           dataKey="time"
-          tick={{ fontSize: 10, fill: "#6b6f85" }}
+          tick={{ fontSize: 10, fill: "var(--text-muted)" }}
           axisLine={false}
           tickLine={false}
         />
         <YAxis
-          tick={{ fontSize: 10, fill: "#6b6f85" }}
+          tick={{ fontSize: 10, fill: "var(--text-muted)" }}
           axisLine={false}
           tickLine={false}
           width={30}
         />
         <Tooltip
           contentStyle={{
-            backgroundColor: "#24273a",
-            border: "1px solid #363a54",
+            backgroundColor: "var(--bg-surface)",
+            border: "1px solid var(--border-primary)",
             borderRadius: "8px",
             fontSize: "12px",
-            color: "#e8e8f0",
+            color: "var(--text-primary)",
           }}
         />
         <Area

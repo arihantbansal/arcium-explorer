@@ -28,7 +28,7 @@ function ComputationDetailContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading computation...
+        Loading computation\u2026
       </div>
     );
   }
@@ -91,7 +91,7 @@ function ComputationDetailContent() {
                       isCompleted
                         ? `${step.borderColor} ${step.bgColor}`
                         : isCurrent
-                        ? `${step.borderColor} ${step.bgColor} animate-pulse`
+                        ? `${step.borderColor} ${step.bgColor} motion-safe:animate-pulse`
                         : isFailed
                         ? "border-status-failed bg-status-failed/20"
                         : "border-border-primary bg-bg-elevated"
@@ -199,7 +199,7 @@ function ComputationDetailContent() {
 
 export default function ComputationDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <ComputationDetailContent />
     </Suspense>
   );

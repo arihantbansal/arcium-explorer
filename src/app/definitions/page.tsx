@@ -69,7 +69,7 @@ function DefinitionsContent() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center text-text-muted">Loading definitions...</div>
+        <div className="flex h-48 items-center justify-center text-text-muted">Loading definitions\u2026</div>
       ) : (
         <DataTable
           data={defs}
@@ -83,7 +83,7 @@ function DefinitionsContent() {
 
 export default function DefinitionsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <DefinitionsContent />
     </Suspense>
   );

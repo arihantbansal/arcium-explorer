@@ -61,7 +61,7 @@ function SearchContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Searching...
+          Searching\u2026
         </div>
       ) : results.length === 0 ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
@@ -115,7 +115,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <SearchContent />
     </Suspense>
   );

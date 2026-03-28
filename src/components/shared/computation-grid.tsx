@@ -3,16 +3,16 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/lib/hooks/use-network";
-import { truncateAddress, timeAgo } from "@/lib/utils";
+import { truncateAddress, timeAgo, formatTimestamp } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import type { SharedComputation } from "./computation-types";
 
-// Phase colors — purple for queue, green for callback OK
+// Phase colors — reference CSS variables so theme changes propagate
 export const PHASE_COLORS = {
-  queued: "#6D45FF",
-  callbackOk: "#4ade80",
-  callbackError: "#f87171",
-  pending: "#6b7280",
+  queued: "var(--status-queued)",
+  callbackOk: "var(--status-finalized)",
+  callbackError: "var(--status-failed)",
+  pending: "var(--text-muted)",
 } as const;
 
 const MAX_COLS = 5;
@@ -105,7 +105,7 @@ export const ComputationGrid = memo(function ComputationGrid({
     return (
       <div ref={wrapperRef} className={cn("w-full", className)}>
         <div className="flex h-48 items-center justify-center text-sm text-text-muted">
-          Loading grid...
+          Loading grid\u2026
         </div>
       </div>
     );
@@ -138,12 +138,12 @@ export const ComputationGrid = memo(function ComputationGrid({
               role="button"
               tabIndex={0}
               className={cn(
-                "flex cursor-pointer flex-col overflow-hidden rounded-md border transition-all",
+                "flex cursor-pointer flex-col overflow-hidden rounded-md border transition-[border-color,box-shadow,transform]",
                 isHighlighted
                   ? "border-white/60 ring-1 ring-white/40 scale-[1.03] z-10"
                   : "border-border-primary hover:border-white/30"
               )}
-              style={{ backgroundColor: "#1e2035" }}
+              style={{ backgroundColor: "var(--bg-primary)" }}
               onClick={() => handleClick(tile)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -186,7 +186,7 @@ export const ComputationGrid = memo(function ComputationGrid({
                   return (
                     <Tag
                       {...linkProps}
-                      className={cn("text-3xl font-black leading-none", queueUrl && "hover:brightness-125 transition-all")}
+                      className={cn("text-3xl font-black leading-none", queueUrl && "hover:brightness-125 transition-[filter]")}
                       style={{ color: PHASE_COLORS.queued }}
                     >
                       ↑
@@ -207,7 +207,7 @@ export const ComputationGrid = memo(function ComputationGrid({
                   return (
                     <Tag
                       {...linkProps}
-                      className={cn("text-3xl font-black leading-none", callbackUrl && "hover:brightness-125 transition-all")}
+                      className={cn("text-3xl font-black leading-none", callbackUrl && "hover:brightness-125 transition-[filter]")}
                       style={{
                         color: callbackColor,
                         opacity: hasCallback ? 1 : 0.4,
@@ -257,7 +257,7 @@ function GridTooltip({
           <span>
             Queued
             {tile.queuedAt
-              ? ` · ${new Date(tile.queuedAt).toLocaleString()}`
+              ? ` \u00b7 ${formatTimestamp(tile.queuedAt)}`
               : ""}
           </span>
         </div>
@@ -278,7 +278,7 @@ function GridTooltip({
               ? "Pending"
               : hasError
               ? `Callback error (${tile.callbackErrorCode})`
-              : `OK${tile.finalizedAt ? ` · ${new Date(tile.finalizedAt).toLocaleString()}` : ""}`}
+              : `OK${tile.finalizedAt ? ` \u00b7 ${formatTimestamp(tile.finalizedAt)}` : ""}`}
           </span>
         </div>
       </div>

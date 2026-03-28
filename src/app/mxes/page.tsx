@@ -74,7 +74,7 @@ function MxesContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading MXEs...
+          Loading MXEs\u2026
         </div>
       ) : (
         <DataTable
@@ -91,7 +91,7 @@ function MxesContent() {
 
 export default function MxesPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <MxesContent />
     </Suspense>
   );

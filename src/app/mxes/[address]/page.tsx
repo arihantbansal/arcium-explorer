@@ -28,7 +28,7 @@ function MxeDetailContent() {
   }>;
 
   if (isLoading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading MXE...</div>;
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading MXE\u2026</div>;
   }
 
   if (!mxe) {
@@ -128,7 +128,7 @@ function MxeDetailContent() {
 
 export default function MxeDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
       <MxeDetailContent />
     </Suspense>
   );
