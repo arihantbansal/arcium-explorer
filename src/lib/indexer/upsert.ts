@@ -27,6 +27,7 @@ export async function upsertCluster(
   const { db, schema } = await getDb();
 
   const derivedOffset = deriveClusterOffset(address) ?? 0;
+  const hasSlot = slot !== undefined && slot > 0;
   const lastSeenSlot = slot ?? 0;
 
   await db
@@ -57,7 +58,9 @@ export async function upsertCluster(
         lastSeenSlot: sql`GREATEST(${schema.clusters.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
-      setWhere: sql`${schema.clusters.lastSeenSlot} <= ${lastSeenSlot}`,
+      // Only apply slot guard when caller provides a real slot (WS/gRPC).
+      // Polling has no slot context — always allow its updates for consistency.
+      ...(hasSlot ? { setWhere: sql`${schema.clusters.lastSeenSlot} <= ${lastSeenSlot}` } : {}),
     });
 }
 
@@ -70,6 +73,7 @@ export async function upsertArxNode(
   const { db, schema } = await getDb();
 
   const derivedOffset = deriveArxNodeOffset(address) ?? 0;
+  const hasSlot = slot !== undefined && slot > 0;
   const lastSeenSlot = slot ?? 0;
 
   await db
@@ -102,7 +106,7 @@ export async function upsertArxNode(
         lastSeenSlot: sql`GREATEST(${schema.arxNodes.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
-      setWhere: sql`${schema.arxNodes.lastSeenSlot} <= ${lastSeenSlot}`,
+      ...(hasSlot ? { setWhere: sql`${schema.arxNodes.lastSeenSlot} <= ${lastSeenSlot}` } : {}),
     });
 }
 
@@ -114,6 +118,7 @@ export async function upsertMXEAccount(
 ): Promise<void> {
   const { db, schema } = await getDb();
 
+  const hasSlot = slot !== undefined && slot > 0;
   const lastSeenSlot = slot ?? 0;
 
   await db
@@ -140,7 +145,7 @@ export async function upsertMXEAccount(
         lastSeenSlot: sql`GREATEST(${schema.mxeAccounts.lastSeenSlot}, ${lastSeenSlot})`,
         updatedAt: new Date(),
       },
-      setWhere: sql`${schema.mxeAccounts.lastSeenSlot} <= ${lastSeenSlot}`,
+      ...(hasSlot ? { setWhere: sql`${schema.mxeAccounts.lastSeenSlot} <= ${lastSeenSlot}` } : {}),
     });
 }
 

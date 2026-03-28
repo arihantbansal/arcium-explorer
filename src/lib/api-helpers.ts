@@ -30,10 +30,11 @@ export function errorResponse(message: string, status: number = 500) {
 }
 
 export function handleApiError(error: unknown, fallback: string) {
-  const message = error instanceof Error ? error.message : fallback;
-  log.error(message, {
+  const detail = error instanceof Error ? error.message : String(error);
+  log.error(detail, {
     ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
   });
-  return errorResponse(message);
+  // Never expose raw error details to clients — log them server-side only
+  return errorResponse(fallback);
 }
 

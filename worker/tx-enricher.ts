@@ -1,5 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { createLogger } from "@/lib/logger";
+import { sleep } from "./utils";
 import type { Network } from "@/types";
 
 const log = createLogger("tx-enricher");
@@ -99,14 +100,14 @@ export class TxEnricher {
         }
 
         // Caught up — wait before checking again
-        await this.sleep(this.intervalMs);
+        await sleep(this.intervalMs);
       } catch (err) {
         log.error("Enrichment cycle failed", {
           network: this.network,
           error: err instanceof Error ? err.message : String(err),
         });
         // Back off on error
-        await this.sleep(this.intervalMs);
+        await sleep(this.intervalMs);
       }
     }
   }
@@ -117,7 +118,7 @@ export class TxEnricher {
    */
   private async enrichBatch(): Promise<number> {
     const { db, schema } = await getDb();
-    const { eq, and, or, isNull, isNotNull, desc } = await import("drizzle-orm");
+    const { eq, and, or, isNull, isNotNull, desc, ne } = await import("drizzle-orm");
 
     // Find computations needing enrichment:
     // 1. Missing queueTxSig (need to find queue tx)
@@ -141,6 +142,8 @@ export class TxEnricher {
         and(
           eq(schema.computations.network, this.network),
           eq(schema.computations.isScaffold, false),
+          // Exclude rows permanently marked as unenrichable (callbackErrorCode = -1)
+          or(isNull(schema.computations.callbackErrorCode), ne(schema.computations.callbackErrorCode, -1)),
           or(
             isNull(schema.computations.queueTxSig),
             and(
@@ -287,7 +290,7 @@ export class TxEnricher {
               break;
             } catch (dbErr) {
               if (attempt === 3) throw dbErr;
-              await this.sleep(500 * attempt);
+              await sleep(500 * attempt);
             }
           }
 
@@ -302,7 +305,7 @@ export class TxEnricher {
 
         // Rate limit between RPC calls
         this.failureCounts.delete(row.address);
-        await this.sleep(this.rateLimitMs);
+        await sleep(this.rateLimitMs);
       } catch (error) {
         const count = (this.failureCounts.get(row.address) ?? 0) + 1;
         this.failureCounts.set(row.address, count);
@@ -349,9 +352,5 @@ export class TxEnricher {
   stop(): void {
     this.running = false;
     log.info("TX enricher stopped", { network: this.network });
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

@@ -1,4 +1,4 @@
-import { count, eq, and, lt } from "drizzle-orm";
+import { count, eq, and, lt, gte, or, isNull } from "drizzle-orm";
 import { createLogger } from "@/lib/logger";
 import { upsertProgram } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
@@ -39,7 +39,6 @@ async function writeSnapshot(network: Network): Promise<void> {
   // Approximate computations per minute: count computations queued in last 5 min / 5
   // Prefer queuedAt (on-chain); for rows where queuedAt is null, fall back to createdAt
   const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
-  const { gte, or, isNull } = await import("drizzle-orm");
   const [recentCount] = await db
     .select({ count: count() })
     .from(schema.computations)

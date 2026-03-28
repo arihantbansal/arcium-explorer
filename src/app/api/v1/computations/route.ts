@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, and, desc, count, sql } from "drizzle-orm";
-import { getNetwork, getPagination, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
+import { getNetwork, getPagination, jsonResponse, handleApiError } from "@/lib/api-helpers";
 import type { ComputationStatus } from "@/types";
 
 export const dynamic = "force-dynamic";

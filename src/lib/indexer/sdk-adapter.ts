@@ -8,6 +8,9 @@
 import { BorshAccountsCoder } from "@coral-xyz/anchor";
 import { ARCIUM_IDL, ARCIUM_ADDR } from "@arcium-hq/client";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { createLogger } from "@/lib/logger";
+
+const log = createLogger("sdk-adapter");
 
 // Single coder instance — constructed from IDL, no provider needed
 const coder = new BorshAccountsCoder(ARCIUM_IDL);
@@ -58,8 +61,7 @@ export function getDiscriminatorBytes(type: AccountTypeName): Buffer {
 
 // ─── Shared helpers ────────────────────────────────────────────
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Anchor BN types are untyped
-function bnToNumber(val: any): number {
+function bnToNumber(val: number | bigint | { toNumber(): number }): number {
   if (typeof val === "number") return val;
   if (typeof val === "bigint") return Number(val);
   return val.toNumber();
@@ -127,7 +129,8 @@ export function decodeArxNode(data: Buffer | Uint8Array): ParsedArxNode | null {
       blsPublicKey,
       x25519PublicKey,
     };
-  } catch {
+  } catch (err) {
+    log.warn("Failed to decode ArxNode", { error: err instanceof Error ? err.message : String(err), dataLen: data.length });
     return null;
   }
 }
@@ -184,7 +187,8 @@ export function decodeCluster(data: Buffer | Uint8Array): ParsedCluster | null {
       isActive,
       blsPublicKey,
     };
-  } catch {
+  } catch (err) {
+    log.warn("Failed to decode Cluster", { error: err instanceof Error ? err.message : String(err), dataLen: data.length });
     return null;
   }
 }
@@ -231,7 +235,8 @@ export function decodeMXEAccount(
       x25519Pubkey,
       compDefOffsets,
     };
-  } catch {
+  } catch (err) {
+    log.warn("Failed to decode MXEAccount", { error: err instanceof Error ? err.message : String(err), dataLen: data.length });
     return null;
   }
 }
@@ -267,7 +272,8 @@ export function decodeComputationDefinition(
     }
 
     return { cuAmount, circuitLen, sourceType };
-  } catch {
+  } catch (err) {
+    log.warn("Failed to decode ComputationDefinition", { error: err instanceof Error ? err.message : String(err), dataLen: data.length });
     return null;
   }
 }
@@ -279,6 +285,8 @@ export interface ParsedComputation {
   clusterOffset: number;
   payer: string;
   mxeProgramId: string | null;
+  /** On-chain account only stores "queued" or "finalized".
+   *  "executing" and "failed" are derived by the tx-enricher from transaction logs. */
   status: "queued" | "executing" | "finalized" | "failed";
   isScaffold: boolean;
   slot: number;
@@ -299,8 +307,8 @@ export function decodeComputation(
     const compDefOffset = decoded.computationDefinitionOffset.toString();
     const slot = bnToNumber(decoded.slot);
 
-    // status: Anchor enum { queued: {}, finalized: {} }
-    let status: "queued" | "finalized" = "queued";
+    // status: Anchor enum — only Queued and Finalized exist on-chain
+    let status: ParsedComputation["status"] = "queued";
     if (decoded.status.finalized !== undefined) {
       status = "finalized";
     }
@@ -320,7 +328,8 @@ export function decodeComputation(
       finalizedAt: null,
       failedAt: null,
     };
-  } catch {
+  } catch (err) {
+    log.warn("Failed to decode Computation", { error: err instanceof Error ? err.message : String(err), dataLen: data.length });
     return null;
   }
 }

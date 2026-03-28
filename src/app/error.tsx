@@ -13,8 +13,9 @@ export default function Error({
         Something went wrong
       </h2>
       <p className="max-w-md text-sm text-text-muted">
-        {error.message ||
-          "An unexpected error occurred while loading this page."}
+        {process.env.NODE_ENV === "development"
+          ? error.message
+          : "An unexpected error occurred while loading this page."}
       </p>
       <button
         onClick={reset}
