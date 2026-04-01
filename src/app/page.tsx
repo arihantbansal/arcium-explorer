@@ -23,7 +23,7 @@ const PAGE_SIZE = 20;
 
 function DashboardContent() {
   const network = useNetwork();
-  const { data: statsResponse, isLoading } = useStats();
+  const { data: statsResponse, isLoading, isError } = useStats();
   const { data: historyResponse } = useStatsHistory(50);
   const stats = statsResponse?.data;
   const history = historyResponse?.data ?? [];
@@ -184,7 +184,7 @@ export default function DashboardPage() {
     <Suspense
       fallback={
         <div className="flex min-h-[50vh] items-center justify-center">
-          <div className="text-text-muted">Loading\u2026</div>
+          <div className="text-text-muted">Loading...</div>
         </div>
       }
     >

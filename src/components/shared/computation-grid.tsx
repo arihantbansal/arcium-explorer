@@ -105,7 +105,7 @@ export const ComputationGrid = memo(function ComputationGrid({
     return (
       <div ref={wrapperRef} className={cn("w-full", className)}>
         <div className="flex h-48 items-center justify-center text-sm text-text-muted">
-          Loading grid\u2026
+          Loading grid...
         </div>
       </div>
     );

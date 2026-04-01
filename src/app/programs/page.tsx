@@ -47,7 +47,7 @@ const columns: ColumnDef<ProgramRow, unknown>[] = [
 function ProgramsContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = usePrograms();
+  const { data: response, isLoading, isError } = usePrograms();
   const programs = (response?.data || []) as ProgramRow[];
 
   return (
@@ -61,7 +61,11 @@ function ProgramsContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading programs\u2026
+          Loading programs...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load programs
         </div>
       ) : (
         <DataTable
@@ -78,7 +82,7 @@ function ProgramsContent() {
 
 export default function ProgramsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <ProgramsContent />
     </Suspense>
   );

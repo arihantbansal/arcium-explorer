@@ -13,7 +13,7 @@ function ProgramDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useProgram(address);
+  const { data: response, isLoading, isError } = useProgram(address);
   const program = response?.data as Record<string, unknown> | undefined;
   const compDefs = (program?.computationDefinitions || []) as Array<{
     address: string;
@@ -26,7 +26,15 @@ function ProgramDetailContent() {
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading program\u2026
+        Loading program...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load program
       </div>
     );
   }
@@ -110,7 +118,7 @@ function ProgramDetailContent() {
 
 export default function ProgramDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <ProgramDetailContent />
     </Suspense>
   );

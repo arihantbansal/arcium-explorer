@@ -100,7 +100,7 @@ function ComputationsContent() {
     [searchParams, router]
   );
 
-  const { data: response, isLoading } = useComputations(1, 50, {
+  const { data: response, isLoading, isError } = useComputations(1, 50, {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
   const computations = (response?.data || []) as ComputationRow[];
@@ -136,7 +136,11 @@ function ComputationsContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading computations\u2026
+          Loading computations...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load computations
         </div>
       ) : (
         <DataTable
@@ -153,7 +157,7 @@ function ComputationsContent() {
 
 export default function ComputationsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <ComputationsContent />
     </Suspense>
   );

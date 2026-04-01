@@ -14,11 +14,15 @@ function DefinitionDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useDefinition(address);
+  const { data: response, isLoading, isError } = useDefinition(address);
   const def = response?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading definition\u2026</div>;
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading definition...</div>;
+  }
+
+  if (isError) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Failed to load definition</div>;
   }
 
   if (!def) {
@@ -83,7 +87,7 @@ function DefinitionDetailContent() {
 
 export default function DefinitionDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <DefinitionDetailContent />
     </Suspense>
   );

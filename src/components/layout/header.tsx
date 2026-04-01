@@ -177,7 +177,7 @@ export function Header() {
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder="Search by address, tx sig, offset\u2026"
+                  placeholder="Search by address, tx sig, offset..."
                   className="flex-1 bg-transparent py-3 text-sm text-text-primary placeholder:text-text-muted outline-none"
                 />
                 <kbd className="rounded border border-border-primary bg-bg-elevated px-1.5 py-0.5 text-[10px] text-text-muted">

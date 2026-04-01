@@ -56,7 +56,7 @@ const columns: ColumnDef<DefRow, unknown>[] = [
 function DefinitionsContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useDefinitions();
+  const { data: response, isLoading, isError } = useDefinitions();
   const defs = (response?.data || []) as DefRow[];
 
   return (
@@ -69,7 +69,9 @@ function DefinitionsContent() {
       </div>
 
       {isLoading ? (
-        <div className="flex h-48 items-center justify-center text-text-muted">Loading definitions\u2026</div>
+        <div className="flex h-48 items-center justify-center text-text-muted">Loading definitions...</div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">Failed to load definitions</div>
       ) : (
         <DataTable
           data={defs}
@@ -83,7 +85,7 @@ function DefinitionsContent() {
 
 export default function DefinitionsPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <DefinitionsContent />
     </Suspense>
   );

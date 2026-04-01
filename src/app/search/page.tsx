@@ -40,7 +40,7 @@ function SearchContent() {
   const searchParams = useSearchParams();
   const network = useNetwork();
   const query = searchParams.get("q") || "";
-  const { data: response, isLoading } = useSearch(query);
+  const { data: response, isLoading, isError } = useSearch(query);
   const results = (response?.data || []) as Array<{
     type: string;
     data: Record<string, unknown>;
@@ -61,7 +61,11 @@ function SearchContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Searching\u2026
+          Searching...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Search failed
         </div>
       ) : results.length === 0 ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
@@ -115,7 +119,7 @@ function SearchContent() {
 
 export default function SearchPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <SearchContent />
     </Suspense>
   );

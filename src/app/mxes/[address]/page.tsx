@@ -13,7 +13,7 @@ function MxeDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useMxe(address);
+  const { data: response, isLoading, isError } = useMxe(address);
   const mxe = response?.data as Record<string, unknown> | undefined;
   const compDefs = (mxe?.computationDefinitions || []) as Array<{
     address: string;
@@ -28,7 +28,11 @@ function MxeDetailContent() {
   }>;
 
   if (isLoading) {
-    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading MXE\u2026</div>;
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading MXE...</div>;
+  }
+
+  if (isError) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Failed to load MXE</div>;
   }
 
   if (!mxe) {
@@ -128,7 +132,7 @@ function MxeDetailContent() {
 
 export default function MxeDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <MxeDetailContent />
     </Suspense>
   );

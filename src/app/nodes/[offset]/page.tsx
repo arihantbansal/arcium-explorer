@@ -14,13 +14,21 @@ function NodeDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const offset = parseInt(params.offset as string, 10);
-  const { data: response, isLoading } = useNode(offset);
+  const { data: response, isLoading, isError } = useNode(offset);
   const node = response?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading node\u2026
+        Loading node...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load node
       </div>
     );
   }
@@ -119,7 +127,7 @@ function NodeDetailContent() {
 
 export default function NodeDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <NodeDetailContent />
     </Suspense>
   );

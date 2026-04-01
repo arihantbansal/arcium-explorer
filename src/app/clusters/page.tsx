@@ -64,7 +64,7 @@ const columns: ColumnDef<ClusterRow, unknown>[] = [
 function ClustersContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useClusters();
+  const { data: response, isLoading, isError } = useClusters();
   const clusters = (response?.data || []) as ClusterRow[];
 
   return (
@@ -78,7 +78,11 @@ function ClustersContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
-          Loading clusters\u2026
+          Loading clusters...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load clusters
         </div>
       ) : (
         <DataTable
@@ -95,7 +99,7 @@ function ClustersContent() {
 
 export default function ClustersPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <ClustersContent />
     </Suspense>
   );

@@ -22,13 +22,21 @@ function ComputationDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const id = params.id as string;
-  const { data: response, isLoading } = useComputation(id);
+  const { data: response, isLoading, isError } = useComputation(id);
   const comp = response?.data;
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
-        Loading computation\u2026
+        Loading computation...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load computation
       </div>
     );
   }
@@ -199,7 +207,7 @@ function ComputationDetailContent() {
 
 export default function ComputationDetailPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading\u2026</div>}>
+    <Suspense fallback={<div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading...</div>}>
       <ComputationDetailContent />
     </Suspense>
   );
