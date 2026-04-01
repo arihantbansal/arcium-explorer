@@ -16,7 +16,14 @@ export function formatNumber(n: number): string {
   return n.toString();
 }
 
-const timestampFormat = new Intl.DateTimeFormat(undefined, {
+const integerFormat = new Intl.NumberFormat("en-US");
+
+/** Full-precision number with thousands separators, pinned to en-US. */
+export function formatInteger(n: number): string {
+  return integerFormat.format(n);
+}
+
+const timestampFormat = new Intl.DateTimeFormat("en-US", {
   month: "short",
   day: "numeric",
   hour: "2-digit",
@@ -29,7 +36,7 @@ export function formatTimestamp(ts: Date | string | number): string {
   return timestampFormat.format(new Date(ts));
 }
 
-const shortTimeFormat = new Intl.DateTimeFormat(undefined, {
+const shortTimeFormat = new Intl.DateTimeFormat("en-US", {
   hour: "2-digit",
   minute: "2-digit",
   hour12: false,

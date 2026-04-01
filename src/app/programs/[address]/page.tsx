@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useProgram } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { AddressDisplay } from "@/components/shared/address-display";
 import { MetricCard } from "@/components/shared/metric-card";
@@ -62,7 +63,7 @@ function ProgramDetailContent() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <MetricCard label="Definitions" value={Number(program.compDefCount)} icon={Code} />
-        <MetricCard label="Computations" value={Number(program.computationCount).toLocaleString()} icon={Cpu} />
+        <MetricCard label="Computations" value={formatInteger(Number(program.computationCount))} icon={Cpu} />
         <MetricCard label="MXE" value="Active" icon={Shield} />
       </div>
 

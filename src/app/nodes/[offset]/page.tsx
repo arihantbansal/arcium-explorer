@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useNode } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -60,7 +61,7 @@ function NodeDetailContent() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <MetricCard
           label="CU Capacity"
-          value={Number(node.cuCapacityClaim).toLocaleString()}
+          value={formatInteger(Number(node.cuCapacityClaim))}
           icon={Cpu}
         />
         <MetricCard

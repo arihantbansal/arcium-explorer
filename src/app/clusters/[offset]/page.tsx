@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useCluster } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -85,7 +86,7 @@ function ClusterDetailContent() {
         />
         <MetricCard
           label="CU Price"
-          value={Number(cluster.cuPrice).toLocaleString()}
+          value={formatInteger(Number(cluster.cuPrice))}
         />
       </div>
 

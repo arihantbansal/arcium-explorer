@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useDefinition } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -39,7 +40,7 @@ function DefinitionDetailContent() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <MetricCard label="CU Amount" value={Number(def.cuAmount).toLocaleString()} icon={Cpu} />
+        <MetricCard label="CU Amount" value={formatInteger(Number(def.cuAmount))} icon={Cpu} />
         <MetricCard label="Circuit Length" value={Number(def.circuitLen)} icon={Code} />
         <MetricCard label="Source" value={String(def.sourceType)} />
       </div>

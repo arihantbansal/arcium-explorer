@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useNodes } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -55,7 +56,7 @@ const columns: ColumnDef<NodeRow, unknown>[] = [
     accessorKey: "cuCapacityClaim",
     header: "CU Capacity",
     cell: ({ getValue }) => (
-      <span className="font-mono">{Number(getValue()).toLocaleString()}</span>
+      <span className="font-mono">{formatInteger(Number(getValue()))}</span>
     ),
   },
   {
