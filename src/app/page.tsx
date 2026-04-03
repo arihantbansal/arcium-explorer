@@ -8,7 +8,6 @@ import { formatNumber } from "@/lib/utils";
 import {
   Server,
   Cpu,
-  Activity,
   Layers,
   Code,
   Shield,
@@ -55,7 +54,7 @@ function DashboardContent() {
       </div>
 
       {/* Stats cards */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <MetricCard
           label="Clusters"
           value={isLoading ? "\u2026" : formatNumber(stats?.totalClusters || 0)}
@@ -73,12 +72,6 @@ function DashboardContent() {
           value={isLoading ? "\u2026" : formatNumber(stats?.totalComputations || 0)}
           icon={Cpu}
           href={`/computations?network=${network}`}
-        />
-        <MetricCard
-          label="Queued"
-          value={isLoading ? "\u2026" : formatNumber(stats?.queuedComputations || 0)}
-          icon={Activity}
-          href={`/computations?network=${network}&status=queued`}
         />
         <MetricCard
           label="Programs"
