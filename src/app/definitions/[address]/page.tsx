@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useDefinition } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -14,11 +15,15 @@ function DefinitionDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useDefinition(address);
+  const { data: response, isLoading, isError } = useDefinition(address);
   const def = response?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading definition...</div>;
+  }
+
+  if (isError) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Failed to load definition</div>;
   }
 
   if (!def) {
@@ -35,7 +40,7 @@ function DefinitionDetailContent() {
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <MetricCard label="CU Amount" value={Number(def.cuAmount).toLocaleString()} icon={Cpu} />
+        <MetricCard label="CU Amount" value={formatInteger(Number(def.cuAmount))} icon={Cpu} />
         <MetricCard label="Circuit Length" value={Number(def.circuitLen)} icon={Code} />
         <MetricCard label="Source" value={String(def.sourceType)} />
       </div>

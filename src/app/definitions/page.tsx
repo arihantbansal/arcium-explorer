@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useDefinitions } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { DataTable } from "@/components/shared/data-table";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -38,7 +39,7 @@ const columns: ColumnDef<DefRow, unknown>[] = [
   {
     accessorKey: "cuAmount",
     header: "CU Amount",
-    cell: ({ getValue }) => <span className="font-mono">{Number(getValue()).toLocaleString()}</span>,
+    cell: ({ getValue }) => <span className="font-mono">{formatInteger(Number(getValue()))}</span>,
   },
   {
     accessorKey: "sourceType",
@@ -56,7 +57,7 @@ const columns: ColumnDef<DefRow, unknown>[] = [
 function DefinitionsContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useDefinitions();
+  const { data: response, isLoading, isError } = useDefinitions();
   const defs = (response?.data || []) as DefRow[];
 
   return (
@@ -70,6 +71,8 @@ function DefinitionsContent() {
 
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">Loading definitions...</div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">Failed to load definitions</div>
       ) : (
         <DataTable
           data={defs}

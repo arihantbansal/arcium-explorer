@@ -13,7 +13,7 @@ function MxeDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useMxe(address);
+  const { data: response, isLoading, isError } = useMxe(address);
   const mxe = response?.data as Record<string, unknown> | undefined;
   const compDefs = (mxe?.computationDefinitions || []) as Array<{
     address: string;
@@ -23,12 +23,16 @@ function MxeDetailContent() {
   }>;
   const scaffoldComputations = (mxe?.scaffoldComputations || []) as Array<{
     address: string;
-    computationOffset: string;
+    compDefOffset: string;
     status: string;
   }>;
 
   if (isLoading) {
     return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Loading MXE...</div>;
+  }
+
+  if (isError) {
+    return <div className="flex min-h-[50vh] items-center justify-center text-text-muted">Failed to load MXE</div>;
   }
 
   if (!mxe) {
@@ -114,7 +118,7 @@ function MxeDetailContent() {
               >
                 <AddressDisplay address={comp.address} showCopy={false} />
                 <div className="flex items-center gap-3 text-xs text-text-muted">
-                  <span>Offset: {comp.computationOffset}</span>
+                  <span>Def #{comp.compDefOffset}</span>
                   <StatusBadge status={comp.status as ComputationStatus} />
                 </div>
               </Link>

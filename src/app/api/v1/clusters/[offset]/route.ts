@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, and } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -20,40 +20,27 @@ export async function GET(
     const { db } = await import("@/lib/db");
     const schema = await import("@/lib/db/schema");
 
-    const [cluster] = await db
-      .select()
-      .from(schema.clusters)
-      .where(
-        and(
-          eq(schema.clusters.offset, offset),
-          eq(schema.clusters.network, network)
-        )
-      )
-      .limit(1);
+    const [[cluster], nodes] = await Promise.all([
+      db
+        .select()
+        .from(schema.clusters)
+        .where(and(eq(schema.clusters.offset, offset), eq(schema.clusters.network, network)))
+        .limit(1),
+      db
+        .select()
+        .from(schema.arxNodes)
+        .where(and(eq(schema.arxNodes.clusterOffset, offset), eq(schema.arxNodes.network, network))),
+    ]);
 
     if (!cluster) {
       return errorResponse("Cluster not found", 404);
     }
-
-    // Fetch nodes in this cluster
-    const nodes = await db
-      .select()
-      .from(schema.arxNodes)
-      .where(
-        and(
-          eq(schema.arxNodes.clusterOffset, offset),
-          eq(schema.arxNodes.network, network)
-        )
-      );
 
     return jsonResponse(
       { ...cluster, nodes },
       { network }
     );
   } catch (error) {
-    console.error("Cluster detail error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch cluster"
-    );
+    return handleApiError(error, "Failed to fetch cluster");
   }
 }

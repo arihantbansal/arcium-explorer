@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  color-scheme: dark;
   /* Arcium Explorer Dark Theme — mempool.space inspired */
   --bg-primary: #1d1f31;
   --bg-surface: #24273a;

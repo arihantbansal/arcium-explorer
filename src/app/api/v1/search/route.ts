@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { eq, and, or } from "drizzle-orm";
-import { getNetwork, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, jsonResponse, errorResponse, handleApiError } from "@/lib/api-helpers";
+import type { SearchResultType } from "@/types";
 
 export const dynamic = "force-dynamic";
 
@@ -12,12 +13,16 @@ export async function GET(req: NextRequest) {
     return errorResponse("Search query required", 400);
   }
 
+  if (query.length > 100) {
+    return errorResponse("Query too long", 400);
+  }
+
   try {
     const { db } = await import("@/lib/db");
     const schema = await import("@/lib/db/schema");
 
     const results: {
-      type: string;
+      type: SearchResultType;
       data: unknown;
     }[] = [];
 
@@ -40,81 +45,94 @@ export async function GET(req: NextRequest) {
           )
         )
         .limit(5);
-      results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
+      results.push(...clusters.map((c) => ({ type: "cluster" as const, data: c })));
     }
 
     if (isPubkey) {
-      // Search by address across all entity types
-      const clusters = await db
-        .select()
-        .from(schema.clusters)
-        .where(
-          and(
-            eq(schema.clusters.network, network),
-            eq(schema.clusters.address, query)
-          )
-        )
-        .limit(1);
-      results.push(...clusters.map((c) => ({ type: "cluster", data: c })));
-
-      const nodes = await db
-        .select()
-        .from(schema.arxNodes)
-        .where(
-          and(
-            eq(schema.arxNodes.network, network),
-            or(
-              eq(schema.arxNodes.address, query),
-              eq(schema.arxNodes.authorityKey, query)
+      // Search by address across all entity types in parallel
+      const [clusters, nodes, computations, programs, mxes, definitions] = await Promise.all([
+        db
+          .select()
+          .from(schema.clusters)
+          .where(
+            and(
+              eq(schema.clusters.network, network),
+              eq(schema.clusters.address, query)
             )
           )
-        )
-        .limit(5);
-      results.push(...nodes.map((n) => ({ type: "node", data: n })));
-
-      const computations = await db
-        .select()
-        .from(schema.computations)
-        .where(
-          and(
-            eq(schema.computations.network, network),
-            or(
-              eq(schema.computations.address, query),
-              eq(schema.computations.payer, query),
-              eq(schema.computations.queueTxSig, query),
-              eq(schema.computations.finalizeTxSig, query)
+          .limit(1),
+        db
+          .select()
+          .from(schema.arxNodes)
+          .where(
+            and(
+              eq(schema.arxNodes.network, network),
+              or(
+                eq(schema.arxNodes.address, query),
+                eq(schema.arxNodes.authorityKey, query)
+              )
             )
           )
-        )
-        .limit(5);
-      results.push(...computations.map((c) => ({ type: "computation", data: c })));
-
-      const programs = await db
-        .select()
-        .from(schema.programs)
-        .where(
-          and(
-            eq(schema.programs.network, network),
-            eq(schema.programs.programId, query)
-          )
-        )
-        .limit(1);
-      results.push(...programs.map((p) => ({ type: "program", data: p })));
-
-      const mxes = await db
-        .select()
-        .from(schema.mxeAccounts)
-        .where(
-          and(
-            eq(schema.mxeAccounts.network, network),
-            or(
-              eq(schema.mxeAccounts.address, query),
-              eq(schema.mxeAccounts.mxeProgramId, query)
+          .limit(5),
+        db
+          .select()
+          .from(schema.computations)
+          .where(
+            and(
+              eq(schema.computations.network, network),
+              or(
+                eq(schema.computations.address, query),
+                eq(schema.computations.payer, query),
+                eq(schema.computations.queueTxSig, query),
+                eq(schema.computations.finalizeTxSig, query)
+              )
             )
           )
-        )
-        .limit(5);
-      results.push(...mxes.map((m) => ({ type: "mxe", data: m })));
+          .limit(5),
+        db
+          .select()
+          .from(schema.programs)
+          .where(
+            and(
+              eq(schema.programs.network, network),
+              eq(schema.programs.programId, query)
+            )
+          )
+          .limit(1),
+        db
+          .select()
+          .from(schema.mxeAccounts)
+          .where(
+            and(
+              eq(schema.mxeAccounts.network, network),
+              or(
+                eq(schema.mxeAccounts.address, query),
+                eq(schema.mxeAccounts.mxeProgramId, query)
+              )
+            )
+          )
+          .limit(5),
+        db
+          .select()
+          .from(schema.computationDefinitions)
+          .where(
+            and(
+              eq(schema.computationDefinitions.network, network),
+              or(
+                eq(schema.computationDefinitions.address, query),
+                eq(schema.computationDefinitions.mxeProgramId, query)
+              )
+            )
+          )
+          .limit(5),
+      ]);
+
+      results.push(...clusters.map((c) => ({ type: "cluster" as const, data: c })));
+      results.push(...nodes.map((n) => ({ type: "node" as const, data: n })));
+      results.push(...computations.map((c) => ({ type: "computation" as const, data: c })));
+      results.push(...programs.map((p) => ({ type: "program" as const, data: p })));
+      results.push(...mxes.map((m) => ({ type: "mxe" as const, data: m })));
+      results.push(...definitions.map((d) => ({ type: "definition" as const, data: d })));
     }
 
     // Search nodes by offset
@@ -129,14 +147,11 @@ export async function GET(req: NextRequest) {
           )
         )
         .limit(5);
-      results.push(...nodes.map((n) => ({ type: "node", data: n })));
+      results.push(...nodes.map((n) => ({ type: "node" as const, data: n })));
     }
 
     return jsonResponse(results, { network, total: results.length });
   } catch (error) {
-    console.error("Search error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Search failed"
-    );
+    return handleApiError(error, "Search failed");
   }
 }

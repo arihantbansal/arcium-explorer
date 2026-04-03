@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { eq, desc } from "drizzle-orm";
-import { getNetwork, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest) {
   const network = getNetwork(req);
   const limit = Math.min(
     100,
-    parseInt(req.nextUrl.searchParams.get("limit") || "50", 10)
+    Math.max(1, parseInt(req.nextUrl.searchParams.get("limit") || "50", 10))
   );
 
   try {
@@ -31,9 +31,6 @@ export async function GET(req: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Stats history error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch history"
-    );
+    return handleApiError(error, "Failed to fetch history");
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useComputations } from "@/lib/hooks/use-api";
 import { useNetwork } from "@/lib/hooks/use-network";
@@ -13,7 +13,7 @@ import type { ComputationStatus } from "@/types";
 
 interface ComputationRow {
   address: string;
-  computationOffset: string;
+  compDefOffset: string;
   clusterOffset: number;
   payer: string;
   status: ComputationStatus;
@@ -24,11 +24,11 @@ interface ComputationRow {
 
 const columns: ColumnDef<ComputationRow, unknown>[] = [
   {
-    accessorKey: "computationOffset",
-    header: "Offset",
+    accessorKey: "compDefOffset",
+    header: "Def #",
     cell: ({ getValue }) => (
       <span className="font-mono text-xs text-accent-link">
-        {String(getValue()).slice(0, 12)}...
+        {String(getValue())}
       </span>
     ),
   },
@@ -85,11 +85,22 @@ function ComputationsContent() {
   const network = useNetwork();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [statusFilter, setStatusFilter] = useState<string>(
-    searchParams.get("status") || "all"
+  const statusFilter = searchParams.get("status") || "all";
+
+  const setStatusFilter = useCallback(
+    (status: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (status === "all") {
+        params.delete("status");
+      } else {
+        params.set("status", status);
+      }
+      router.replace(`/computations?${params.toString()}`);
+    },
+    [searchParams, router]
   );
 
-  const { data: response, isLoading } = useComputations(1, 50, {
+  const { data: response, isLoading, isError } = useComputations(1, 50, {
     status: statusFilter === "all" ? undefined : statusFilter,
   });
   const computations = (response?.data || []) as ComputationRow[];
@@ -126,6 +137,10 @@ function ComputationsContent() {
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
           Loading computations...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load computations
         </div>
       ) : (
         <DataTable

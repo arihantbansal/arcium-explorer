@@ -1,11 +1,11 @@
-import { count, eq, and, lt } from "drizzle-orm";
-import { createLogger } from "./logger";
+import { count, eq, and, lt, gte, or, isNull } from "drizzle-orm";
+import { createLogger } from "@/lib/logger";
 import { upsertProgram } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
 
 const log = createLogger("snapshots");
 
-const RETENTION_DAYS = 30;
+const RETENTION_DAYS = Number(process.env.SNAPSHOT_RETENTION_DAYS) || 30;
 
 async function getDb() {
   const { db } = await import("@/lib/db");
@@ -39,7 +39,6 @@ async function writeSnapshot(network: Network): Promise<void> {
   // Approximate computations per minute: count computations queued in last 5 min / 5
   // Prefer queuedAt (on-chain); for rows where queuedAt is null, fall back to createdAt
   const fiveMinAgo = new Date(Date.now() - 5 * 60_000);
-  const { gte, or, isNull } = await import("drizzle-orm");
   const [recentCount] = await db
     .select({ count: count() })
     .from(schema.computations)
@@ -80,14 +79,36 @@ async function writeSnapshot(network: Network): Promise<void> {
 async function aggregatePrograms(network: Network): Promise<void> {
   const { db, schema } = await getDb();
 
-  const mxeRows = await db
-    .select({
-      address: schema.mxeAccounts.address,
-      mxeProgramId: schema.mxeAccounts.mxeProgramId,
-      compDefOffsets: schema.mxeAccounts.compDefOffsets,
-    })
-    .from(schema.mxeAccounts)
-    .where(eq(schema.mxeAccounts.network, network));
+  // Fetch MXE metadata and computation counts in two queries instead of O(N)
+  const [mxeRows, compCounts] = await Promise.all([
+    db
+      .select({
+        address: schema.mxeAccounts.address,
+        mxeProgramId: schema.mxeAccounts.mxeProgramId,
+        compDefOffsets: schema.mxeAccounts.compDefOffsets,
+      })
+      .from(schema.mxeAccounts)
+      .where(eq(schema.mxeAccounts.network, network)),
+    db
+      .select({
+        mxeProgramId: schema.computations.mxeProgramId,
+        count: count(),
+      })
+      .from(schema.computations)
+      .where(
+        and(
+          eq(schema.computations.network, network),
+          eq(schema.computations.isScaffold, false)
+        )
+      )
+      .groupBy(schema.computations.mxeProgramId),
+  ]);
+
+  const countMap = new Map(
+    compCounts
+      .filter((r): r is typeof r & { mxeProgramId: string } => r.mxeProgramId !== null)
+      .map((r) => [r.mxeProgramId, r.count])
+  );
 
   let upserted = 0;
   for (const mxe of mxeRows) {
@@ -95,23 +116,12 @@ async function aggregatePrograms(network: Network): Promise<void> {
       ? mxe.compDefOffsets.length
       : 0;
 
-    const [compCount] = await db
-      .select({ count: count() })
-      .from(schema.computations)
-      .where(
-        and(
-          eq(schema.computations.mxeProgramId, mxe.mxeProgramId),
-          eq(schema.computations.network, network),
-          eq(schema.computations.isScaffold, false)
-        )
-      );
-
     await upsertProgram(
       mxe.mxeProgramId,
       mxe.address,
       network,
       compDefCount,
-      compCount.count
+      countMap.get(mxe.mxeProgramId) ?? 0
     );
     upserted++;
   }
@@ -123,6 +133,7 @@ export class SnapshotWriter {
   private intervalMs: number;
   private networks: Network[];
   private timer: ReturnType<typeof setInterval> | null = null;
+  private delayTimer: ReturnType<typeof setTimeout> | null = null;
   private running = false;
 
   constructor(intervalMs: number, networks: Network[]) {
@@ -140,40 +151,42 @@ export class SnapshotWriter {
     });
 
     // Initial snapshot after a short delay (let first poll complete)
-    setTimeout(() => {
+    this.delayTimer = setTimeout(() => {
+      this.delayTimer = null;
       if (!this.running) return;
       this.writeAll().catch((err) =>
-        log.error("Initial snapshot failed", { error: String(err) })
+        log.error("Initial snapshot failed", { error: String(err) }),
       );
     }, 60_000);
 
     this.timer = setInterval(() => {
       if (!this.running) return;
       this.writeAll().catch((err) =>
-        log.error("Snapshot cycle failed", { error: String(err) })
+        log.error("Snapshot cycle failed", { error: String(err) }),
       );
     }, this.intervalMs);
   }
 
   private async writeAll(): Promise<void> {
-    for (const network of this.networks) {
-      try {
-        await writeSnapshot(network);
-      } catch (error) {
-        log.error("Snapshot write failed", {
-          network,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-      try {
-        await aggregatePrograms(network);
-      } catch (error) {
-        log.error("Program aggregation failed", {
-          network,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
-    }
+    // Run snapshot + aggregation in parallel per network
+    await Promise.all(
+      this.networks.map(async (network) => {
+        await Promise.all([
+          writeSnapshot(network).catch((error) =>
+            log.error("Snapshot write failed", {
+              network,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          ),
+          aggregatePrograms(network).catch((error) =>
+            log.error("Program aggregation failed", {
+              network,
+              error: error instanceof Error ? error.message : String(error),
+            }),
+          ),
+        ]);
+      }),
+    );
 
     // Trim old snapshots (run once per cycle, covers all networks)
     try {
@@ -191,6 +204,10 @@ export class SnapshotWriter {
 
   stop(): void {
     this.running = false;
+    if (this.delayTimer) {
+      clearTimeout(this.delayTimer);
+      this.delayTimer = null;
+    }
     if (this.timer) {
       clearInterval(this.timer);
       this.timer = null;

@@ -2,7 +2,7 @@ import type { ComputationStatus } from "@/types";
 
 export interface SharedComputation {
   address: string;
-  computationOffset: string;
+  compDefOffset: string;
   status: ComputationStatus;
   callbackErrorCode: number | null;
   payer: string;

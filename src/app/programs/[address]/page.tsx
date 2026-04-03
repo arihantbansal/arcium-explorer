@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useProgram } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { AddressDisplay } from "@/components/shared/address-display";
 import { MetricCard } from "@/components/shared/metric-card";
@@ -13,7 +14,7 @@ function ProgramDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const address = params.address as string;
-  const { data: response, isLoading } = useProgram(address);
+  const { data: response, isLoading, isError } = useProgram(address);
   const program = response?.data as Record<string, unknown> | undefined;
   const compDefs = (program?.computationDefinitions || []) as Array<{
     address: string;
@@ -27,6 +28,14 @@ function ProgramDetailContent() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
         Loading program...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load program
       </div>
     );
   }
@@ -54,7 +63,7 @@ function ProgramDetailContent() {
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <MetricCard label="Definitions" value={Number(program.compDefCount)} icon={Code} />
-        <MetricCard label="Computations" value={Number(program.computationCount).toLocaleString()} icon={Cpu} />
+        <MetricCard label="Computations" value={formatInteger(Number(program.computationCount))} icon={Cpu} />
         <MetricCard label="MXE" value="Active" icon={Shield} />
       </div>
 

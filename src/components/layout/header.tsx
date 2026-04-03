@@ -32,7 +32,7 @@ export function Header() {
     const newNetwork = network === "devnet" ? "mainnet" : "devnet";
     const params = new URLSearchParams(searchParams.toString());
     params.set("network", newNetwork);
-    router.push(`${pathname}?${params.toString()}`);
+    router.replace(`${pathname}?${params.toString()}`);
   }, [network, pathname, searchParams, router]);
 
   const handleSearch = useCallback(

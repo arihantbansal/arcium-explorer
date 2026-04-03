@@ -14,6 +14,7 @@
     "worker:dev": "tsx watch --tsconfig worker/tsconfig.json worker/main.ts"
   },
   "dependencies": {
+    "@arcium-hq/reader": "0.9.3",
     "@solana/web3.js": "^1.98.4",
     "@tanstack/react-query": "^5.90.20",
     "@tanstack/react-table": "^8.21.3",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/bn.js": "^5.2.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

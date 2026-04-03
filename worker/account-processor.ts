@@ -1,11 +1,11 @@
-import { identifyAccountType } from "@/lib/indexer/discriminators";
 import {
-  parseClusterAccount,
-  parseArxNodeAccount,
-  parseMXEAccount,
-  parseComputationDefinitionAccount,
-  parseComputationAccount,
-} from "@/lib/indexer/parsers";
+  identifyAccountType,
+  decodeCluster,
+  decodeArxNode,
+  decodeMXEAccount,
+  decodeComputationDefinition,
+  decodeComputation,
+} from "@/lib/indexer/sdk-adapter";
 import {
   upsertCluster,
   upsertArxNode,
@@ -14,29 +14,17 @@ import {
   upsertComputation,
 } from "@/lib/indexer/upsert";
 import type { Network } from "@/types";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
+import { retry } from "./utils";
 
 const log = createLogger("processor");
-
-const MAX_RETRIES = 3;
-const RETRY_DELAY_MS = 500;
 
 export interface AccountUpdate {
   address: string;
   data: Buffer | Uint8Array;
   network: Network;
-}
-
-async function retry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T> {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      if (attempt === retries) throw error;
-      await new Promise((r) => setTimeout(r, RETRY_DELAY_MS * attempt));
-    }
-  }
-  throw new Error("unreachable");
+  /** Solana slot of this account update — used to prevent older data overwriting newer */
+  slot?: number;
 }
 
 /**
@@ -44,7 +32,7 @@ async function retry<T>(fn: () => Promise<T>, retries = MAX_RETRIES): Promise<T>
  * Returns the account type name if processed, null if skipped.
  */
 export async function processAccountUpdate(update: AccountUpdate): Promise<string | null> {
-  const { address, data, network } = update;
+  const { address, data, network, slot } = update;
   const buf = Buffer.from(data);
 
   const accountType = identifyAccountType(buf);
@@ -56,31 +44,31 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
   try {
     switch (accountType) {
       case "Cluster": {
-        const parsed = parseClusterAccount(buf);
+        const parsed = decodeCluster(buf);
         if (parsed) {
-          await retry(() => upsertCluster(address, parsed, network));
+          await retry(() => upsertCluster(address, parsed, network, slot));
           log.debug("Upserted cluster", { address });
         }
         break;
       }
       case "ArxNode": {
-        const parsed = parseArxNodeAccount(buf);
+        const parsed = decodeArxNode(buf);
         if (parsed) {
-          await retry(() => upsertArxNode(address, parsed, network));
+          await retry(() => upsertArxNode(address, parsed, network, slot));
           log.debug("Upserted arx node", { address });
         }
         break;
       }
       case "MXEAccount": {
-        const parsed = parseMXEAccount(buf);
+        const parsed = decodeMXEAccount(buf);
         if (parsed) {
-          await retry(() => upsertMXEAccount(address, parsed, network));
+          await retry(() => upsertMXEAccount(address, parsed, network, slot));
           log.debug("Upserted MXE account", { address });
         }
         break;
       }
       case "ComputationDefinitionAccount": {
-        const parsed = parseComputationDefinitionAccount(buf);
+        const parsed = decodeComputationDefinition(buf);
         if (parsed) {
           await retry(() => upsertComputationDefinition(address, parsed, network));
           log.debug("Upserted computation definition", { address });
@@ -88,7 +76,7 @@ export async function processAccountUpdate(update: AccountUpdate): Promise<strin
         break;
       }
       case "ComputationAccount": {
-        const parsed = parseComputationAccount(buf);
+        const parsed = decodeComputation(buf);
         if (parsed) {
           await retry(() => upsertComputation(address, parsed, network));
           log.debug("Upserted computation", { address });

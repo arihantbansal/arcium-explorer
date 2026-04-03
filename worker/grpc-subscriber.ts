@@ -1,9 +1,12 @@
 import Client from "@triton-one/yellowstone-grpc";
-import { ARCIUM_PROGRAM_ID } from "@/lib/constants";
+import { ARCIUM_PROGRAM } from "@/lib/indexer/sdk-adapter";
 import { processAccountUpdate } from "./account-processor";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
+import { sleep, withTimeout } from "./utils";
 import type { Network } from "@/types";
 import { PublicKey } from "@solana/web3.js";
+
+const ARCIUM_PROGRAM_ID = ARCIUM_PROGRAM.toBase58();
 
 const log = createLogger("grpc");
 
@@ -51,10 +54,10 @@ export class GrpcSubscriber {
           error: msg,
           retryInMs: this.reconnectDelay,
         });
-        await this.sleep(this.reconnectDelay);
+        await sleep(this.reconnectDelay);
         this.reconnectDelay = Math.min(
           this.reconnectDelay * 2,
-          this.MAX_RECONNECT_DELAY
+          this.MAX_RECONNECT_DELAY,
         );
       }
     }
@@ -73,31 +76,18 @@ export class GrpcSubscriber {
     return this.client;
   }
 
-  private async withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
-    let timer: ReturnType<typeof setTimeout>;
-    const timeout = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new Error(`${label} timeout after ${ms}ms`)), ms);
-    });
-    try {
-      return await Promise.race([promise, timeout]);
-    } finally {
-      clearTimeout(timer!);
-    }
-  }
-
   private async subscribe(): Promise<void> {
     const client = this.ensureClient();
 
-    await this.withTimeout(
+    await withTimeout(
       client.connect(),
       GrpcSubscriber.CONNECT_TIMEOUT_MS,
-      "gRPC connect"
+      "gRPC connect",
     );
     log.info("gRPC connected", { endpoint: this.endpoint });
 
     const stream = await client.subscribe();
 
-    // Subscribe to all Arcium program accounts
     const subscribeRequest = {
       accounts: {
         arcium: {
@@ -119,10 +109,11 @@ export class GrpcSubscriber {
     stream.write(subscribeRequest);
     log.info("gRPC subscription active", { owner: ARCIUM_PROGRAM_ID });
 
-    // Reset reconnect delay on successful subscription
     this.reconnectDelay = 1000;
 
     await new Promise<void>((resolve, reject) => {
+      let settled = false;
+
       stream.on("data", async (update: Record<string, unknown>) => {
         try {
           if (update.account) {
@@ -145,11 +136,11 @@ export class GrpcSubscriber {
               address,
               data: info.data,
               network: this.network,
+              slot: Number(accountUpdate.slot) || undefined,
             });
 
             this.accountsProcessed++;
 
-            // Periodic health log
             const now = Date.now();
             if (now - this.lastLogTime >= GrpcSubscriber.HEALTH_LOG_INTERVAL_MS) {
               log.info("gRPC health", {
@@ -167,17 +158,23 @@ export class GrpcSubscriber {
       });
 
       stream.on("error", (err: Error) => {
+        if (settled) return;
+        settled = true;
         log.error("gRPC stream error", { error: err.message });
         this.client = null;
         reject(err);
       });
 
       stream.on("end", () => {
+        if (settled) return;
+        settled = true;
         log.debug("gRPC stream ended");
         resolve();
       });
 
       stream.on("close", () => {
+        if (settled) return;
+        settled = true;
         log.debug("gRPC stream closed");
         resolve();
       });
@@ -186,10 +183,9 @@ export class GrpcSubscriber {
 
   stop(): void {
     this.running = false;
+    if (this.client) {
+      this.client = null;
+    }
     log.info("gRPC subscriber stop requested");
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

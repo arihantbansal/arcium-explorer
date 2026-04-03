@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useClusters } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -49,7 +50,7 @@ const columns: ColumnDef<ClusterRow, unknown>[] = [
     accessorKey: "cuPrice",
     header: "CU Price",
     cell: ({ getValue }) => (
-      <span className="font-mono">{Number(getValue()).toLocaleString()}</span>
+      <span className="font-mono">{formatInteger(Number(getValue()))}</span>
     ),
   },
   {
@@ -64,7 +65,7 @@ const columns: ColumnDef<ClusterRow, unknown>[] = [
 function ClustersContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useClusters();
+  const { data: response, isLoading, isError } = useClusters();
   const clusters = (response?.data || []) as ClusterRow[];
 
   return (
@@ -79,6 +80,10 @@ function ClustersContent() {
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
           Loading clusters...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load clusters
         </div>
       ) : (
         <DataTable

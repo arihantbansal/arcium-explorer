@@ -60,7 +60,7 @@ const columns: ColumnDef<MxeRow, unknown>[] = [
 function MxesContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useMxes();
+  const { data: response, isLoading, isError } = useMxes();
   const mxes = (response?.data || []) as MxeRow[];
 
   return (
@@ -75,6 +75,10 @@ function MxesContent() {
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
           Loading MXEs...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load MXEs
         </div>
       ) : (
         <DataTable

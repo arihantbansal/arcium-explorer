@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useNode } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -14,13 +15,21 @@ function NodeDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const offset = parseInt(params.offset as string, 10);
-  const { data: response, isLoading } = useNode(offset);
+  const { data: response, isLoading, isError } = useNode(offset);
   const node = response?.data as Record<string, unknown> | undefined;
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
         Loading node...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load node
       </div>
     );
   }
@@ -52,7 +61,7 @@ function NodeDetailContent() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
         <MetricCard
           label="CU Capacity"
-          value={Number(node.cuCapacityClaim).toLocaleString()}
+          value={formatInteger(Number(node.cuCapacityClaim))}
           icon={Cpu}
         />
         <MetricCard

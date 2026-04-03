@@ -1,5 +1,6 @@
 import { Connection, PublicKey } from "@solana/web3.js";
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
+import { sleep } from "./utils";
 import type { Network } from "@/types";
 
 const log = createLogger("tx-enricher");
@@ -39,6 +40,9 @@ export interface TxEnricherConfig {
   initialDelayMs?: number;
 }
 
+// Max consecutive failures before marking a row as unenrichable (-1 sentinel)
+const MAX_ENRICH_FAILURES = 3;
+
 export class TxEnricher {
   private connection: Connection;
   private network: Network;
@@ -47,6 +51,7 @@ export class TxEnricher {
   private rateLimitMs: number;
   private initialDelayMs: number;
   private running = false;
+  private failureCounts = new Map<string, number>();
 
   constructor(config: TxEnricherConfig) {
     this.connection = new Connection(config.rpcUrl, { commitment: "confirmed" });
@@ -95,14 +100,14 @@ export class TxEnricher {
         }
 
         // Caught up — wait before checking again
-        await this.sleep(this.intervalMs);
+        await sleep(this.intervalMs);
       } catch (err) {
         log.error("Enrichment cycle failed", {
           network: this.network,
           error: err instanceof Error ? err.message : String(err),
         });
         // Back off on error
-        await this.sleep(this.intervalMs);
+        await sleep(this.intervalMs);
       }
     }
   }
@@ -113,7 +118,7 @@ export class TxEnricher {
    */
   private async enrichBatch(): Promise<number> {
     const { db, schema } = await getDb();
-    const { eq, and, or, isNull, isNotNull, desc } = await import("drizzle-orm");
+    const { eq, and, or, isNull, isNotNull, desc, ne } = await import("drizzle-orm");
 
     // Find computations needing enrichment:
     // 1. Missing queueTxSig (need to find queue tx)
@@ -137,6 +142,8 @@ export class TxEnricher {
         and(
           eq(schema.computations.network, this.network),
           eq(schema.computations.isScaffold, false),
+          // Exclude rows permanently marked as unenrichable (callbackErrorCode = -1)
+          or(isNull(schema.computations.callbackErrorCode), ne(schema.computations.callbackErrorCode, -1)),
           or(
             isNull(schema.computations.queueTxSig),
             and(
@@ -283,7 +290,7 @@ export class TxEnricher {
               break;
             } catch (dbErr) {
               if (attempt === 3) throw dbErr;
-              await this.sleep(500 * attempt);
+              await sleep(500 * attempt);
             }
           }
 
@@ -297,12 +304,37 @@ export class TxEnricher {
         }
 
         // Rate limit between RPC calls
-        await this.sleep(this.rateLimitMs);
+        this.failureCounts.delete(row.address);
+        await sleep(this.rateLimitMs);
       } catch (error) {
-        log.error("Failed to enrich computation", {
-          address: row.address,
-          error: error instanceof Error ? error.message : String(error),
-        });
+        const count = (this.failureCounts.get(row.address) ?? 0) + 1;
+        this.failureCounts.set(row.address, count);
+
+        if (count >= MAX_ENRICH_FAILURES) {
+          // Mark as permanently unenrichable so the query skips it next cycle
+          log.warn("Marking computation as unenrichable after repeated failures", {
+            address: row.address,
+            failures: count,
+          });
+          try {
+            await db
+              .update(schema.computations)
+              .set({ callbackErrorCode: -1, updatedAt: new Date() })
+              .where(eq(schema.computations.id, row.id));
+          } catch (dbErr) {
+            log.error("Failed to mark unenrichable", {
+              address: row.address,
+              error: dbErr instanceof Error ? dbErr.message : String(dbErr),
+            });
+          }
+          this.failureCounts.delete(row.address);
+        } else {
+          log.error("Failed to enrich computation", {
+            address: row.address,
+            attempt: count,
+            error: error instanceof Error ? error.message : String(error),
+          });
+        }
       }
     }
 
@@ -320,9 +352,5 @@ export class TxEnricher {
   stop(): void {
     this.running = false;
     log.info("TX enricher stopped", { network: this.network });
-  }
-
-  private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

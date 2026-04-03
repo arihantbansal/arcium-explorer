@@ -11,7 +11,8 @@ import { cn } from "@/lib/utils";
 import Link from "next/link";
 import type { ComputationStatus } from "@/types";
 
-const LIFECYCLE_STEPS: { key: string; label: string; status: ComputationStatus; color: string; bgColor: string; borderColor: string }[] = [
+type TimestampKey = "queuedAt" | "executingAt" | "finalizedAt";
+const LIFECYCLE_STEPS: { key: TimestampKey; label: string; status: ComputationStatus; color: string; bgColor: string; borderColor: string }[] = [
   { key: "queuedAt", label: "Queued", status: "queued", color: "text-status-queued", bgColor: "bg-status-queued/20", borderColor: "border-status-queued" },
   { key: "executingAt", label: "Executing", status: "executing", color: "text-status-executing", bgColor: "bg-status-executing/20", borderColor: "border-status-executing" },
   { key: "finalizedAt", label: "Finalized", status: "finalized", color: "text-status-finalized", bgColor: "bg-status-finalized/20", borderColor: "border-status-finalized" },
@@ -21,13 +22,21 @@ function ComputationDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const id = params.id as string;
-  const { data: response, isLoading } = useComputation(id);
-  const comp = response?.data as Record<string, unknown> | undefined;
+  const { data: response, isLoading, isError } = useComputation(id);
+  const comp = response?.data;
 
   if (isLoading) {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
         Loading computation...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load computation
       </div>
     );
   }
@@ -40,8 +49,8 @@ function ComputationDetailContent() {
     );
   }
 
-  const status = comp.status as ComputationStatus;
-  const callbackErrorCode = comp.callbackErrorCode as number | null;
+  const status = comp.status;
+  const callbackErrorCode = comp.callbackErrorCode;
 
   return (
     <div className="mx-auto max-w-screen-2xl px-4 py-6 space-y-6">
@@ -90,7 +99,7 @@ function ComputationDetailContent() {
                       isCompleted
                         ? `${step.borderColor} ${step.bgColor}`
                         : isCurrent
-                        ? `${step.borderColor} ${step.bgColor} animate-pulse`
+                        ? `${step.borderColor} ${step.bgColor} motion-safe:animate-pulse`
                         : isFailed
                         ? "border-status-failed bg-status-failed/20"
                         : "border-border-primary bg-bg-elevated"
@@ -136,15 +145,15 @@ function ComputationDetailContent() {
             <span className="shrink-0 text-text-muted">Address</span>
             <div className="min-w-0">
               <AddressDisplay
-                address={String(comp.address)}
+                address={comp.address}
                 showExternalLink
                 solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"}
               />
             </div>
           </div>
           <div className="flex items-center justify-between gap-4">
-            <span className="shrink-0 text-text-muted">Computation Offset</span>
-            <span className="font-mono text-xs truncate min-w-0">{String(comp.computationOffset)}</span>
+            <span className="shrink-0 text-text-muted">Definition #</span>
+            <span className="font-mono text-xs truncate min-w-0">{comp.compDefOffset}</span>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="shrink-0 text-text-muted">Cluster</span>
@@ -152,16 +161,16 @@ function ComputationDetailContent() {
               href={`/clusters/${comp.clusterOffset}?network=${network}`}
               className="font-mono text-accent-link hover:underline"
             >
-              {String(comp.clusterOffset)}
+              {comp.clusterOffset}
             </Link>
           </div>
           <div className="flex items-center justify-between gap-4">
             <span className="shrink-0 text-text-muted">Payer</span>
             <div className="min-w-0">
-              <AddressDisplay address={String(comp.payer)} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
+              <AddressDisplay address={comp.payer} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} />
             </div>
           </div>
-          {!!comp.mxeProgramId && (
+          {comp.mxeProgramId && (
             <div className="flex items-center justify-between gap-4">
               <span className="shrink-0 text-text-muted">Program</span>
               <div className="min-w-0">
@@ -169,24 +178,24 @@ function ComputationDetailContent() {
                   href={`/programs/${comp.mxeProgramId}?network=${network}`}
                   className="text-accent-link hover:underline"
                 >
-                  <AddressDisplay address={String(comp.mxeProgramId)} showCopy={false} />
+                  <AddressDisplay address={comp.mxeProgramId} showCopy={false} />
                 </Link>
               </div>
             </div>
           )}
-          {!!comp.queueTxSig && (
+          {comp.queueTxSig && (
             <div className="flex items-center justify-between gap-4">
               <span className="shrink-0 text-text-muted">Queue TX</span>
               <div className="min-w-0">
-                <AddressDisplay address={String(comp.queueTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+                <AddressDisplay address={comp.queueTxSig} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
               </div>
             </div>
           )}
-          {!!comp.finalizeTxSig && (
+          {comp.finalizeTxSig && (
             <div className="flex items-center justify-between gap-4">
               <span className="shrink-0 text-text-muted">Finalize TX</span>
               <div className="min-w-0">
-                <AddressDisplay address={String(comp.finalizeTxSig)} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
+                <AddressDisplay address={comp.finalizeTxSig} chars={8} showExternalLink solanaExplorerNetwork={network === "mainnet" ? "mainnet-beta" : "devnet"} linkType="tx" />
               </div>
             </div>
           )}

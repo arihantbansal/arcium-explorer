@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { eq, desc } from "drizzle-orm";
-import { getNetwork, getPagination, jsonResponse, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, getPagination, jsonResponse, handleApiError } from "@/lib/api-helpers";
 
 export const dynamic = "force-dynamic";
 
@@ -33,9 +33,6 @@ export async function GET(req: NextRequest) {
       total: totalResult.count,
     });
   } catch (error) {
-    console.error("Clusters API error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch clusters"
-    );
+    return handleApiError(error, "Failed to fetch clusters");
   }
 }

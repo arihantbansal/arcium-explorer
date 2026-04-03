@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useParams } from "next/navigation";
 import { useCluster } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { StatusBadge } from "@/components/shared/status-badge";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -14,7 +15,7 @@ function ClusterDetailContent() {
   const params = useParams();
   const network = useNetwork();
   const offset = parseInt(params.offset as string, 10);
-  const { data: response, isLoading } = useCluster(offset);
+  const { data: response, isLoading, isError } = useCluster(offset);
   const cluster = response?.data as Record<string, unknown> | undefined;
   const nodes = (cluster?.nodes || []) as Array<{
     offset: number;
@@ -29,6 +30,14 @@ function ClusterDetailContent() {
     return (
       <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
         Loading cluster...
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex min-h-[50vh] items-center justify-center text-text-muted">
+        Failed to load cluster
       </div>
     );
   }
@@ -77,7 +86,7 @@ function ClusterDetailContent() {
         />
         <MetricCard
           label="CU Price"
-          value={Number(cluster.cuPrice).toLocaleString()}
+          value={formatInteger(Number(cluster.cuPrice))}
         />
       </div>
 

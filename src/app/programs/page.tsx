@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { usePrograms } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { DataTable } from "@/components/shared/data-table";
 import { AddressDisplay } from "@/components/shared/address-display";
@@ -39,7 +40,7 @@ const columns: ColumnDef<ProgramRow, unknown>[] = [
     accessorKey: "computationCount",
     header: "Computations",
     cell: ({ getValue }) => (
-      <span className="font-mono">{Number(getValue()).toLocaleString()}</span>
+      <span className="font-mono">{formatInteger(Number(getValue()))}</span>
     ),
   },
 ];
@@ -47,7 +48,7 @@ const columns: ColumnDef<ProgramRow, unknown>[] = [
 function ProgramsContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = usePrograms();
+  const { data: response, isLoading, isError } = usePrograms();
   const programs = (response?.data || []) as ProgramRow[];
 
   return (
@@ -62,6 +63,10 @@ function ProgramsContent() {
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
           Loading programs...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load programs
         </div>
       ) : (
         <DataTable

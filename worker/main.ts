@@ -1,4 +1,5 @@
-import { createLogger } from "./logger";
+import { createLogger } from "@/lib/logger";
+import { retry } from "./utils";
 import { PollingIndexer } from "./polling-indexer";
 import { GrpcSubscriber } from "./grpc-subscriber";
 import { WsSubscriber } from "./ws-subscriber";
@@ -19,10 +20,10 @@ const MAINNET_WS_URL = process.env.MAINNET_WS_URL || undefined;
 const DEVNET_WS_URL = process.env.DEVNET_WS_URL || undefined;
 const MAINNET_ENRICHER_RPC_URL = process.env.MAINNET_ENRICHER_RPC_URL || undefined;
 
-const DEVNET_POLL_INTERVAL = 5 * 60_000;     // 5min (WS is primary, this is consistency check)
-const MAINNET_POLL_INTERVAL = 5 * 60_000;    // 5min (gRPC is primary, this is consistency check)
-const SNAPSHOT_INTERVAL = 5 * 60_000;        // 5min
-const HEARTBEAT_INTERVAL = 5 * 60_000;       // 5min
+const DEVNET_POLL_INTERVAL = Number(process.env.DEVNET_POLL_INTERVAL_MS) || 5 * 60_000;
+const MAINNET_POLL_INTERVAL = Number(process.env.MAINNET_POLL_INTERVAL_MS) || 5 * 60_000;
+const SNAPSHOT_INTERVAL = Number(process.env.SNAPSHOT_INTERVAL_MS) || 5 * 60_000;
+const HEARTBEAT_INTERVAL = Number(process.env.HEARTBEAT_INTERVAL_MS) || 5 * 60_000;
 
 // Track active services for graceful shutdown
 const services: { stop: () => void }[] = [];
@@ -46,8 +47,8 @@ async function main(): Promise<void> {
     grpcEndpoint: MAINNET_GRPC_ENDPOINT,
   });
 
-  // Verify DB connection before anything else
-  await verifyDatabase();
+  // Verify DB connection before anything else (retry for container startup races)
+  await retry(verifyDatabase, 5, 2000);
 
   const activeNetworks: Network[] = [];
 
@@ -84,6 +85,7 @@ async function main(): Promise<void> {
       rpcUrl: MAINNET_RPC_URL,
       network: "mainnet",
       intervalMs: MAINNET_POLL_INTERVAL,
+      startDelayMs: 10_000,
     });
     mainnetPoller.start();
     services.push(mainnetPoller);

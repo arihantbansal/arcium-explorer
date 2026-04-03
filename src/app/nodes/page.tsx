@@ -3,6 +3,7 @@
 import { Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { useNodes } from "@/lib/hooks/use-api";
+import { formatInteger } from "@/lib/utils";
 import { useNetwork } from "@/lib/hooks/use-network";
 import { DataTable } from "@/components/shared/data-table";
 import { StatusBadge } from "@/components/shared/status-badge";
@@ -55,7 +56,7 @@ const columns: ColumnDef<NodeRow, unknown>[] = [
     accessorKey: "cuCapacityClaim",
     header: "CU Capacity",
     cell: ({ getValue }) => (
-      <span className="font-mono">{Number(getValue()).toLocaleString()}</span>
+      <span className="font-mono">{formatInteger(Number(getValue()))}</span>
     ),
   },
   {
@@ -70,7 +71,7 @@ const columns: ColumnDef<NodeRow, unknown>[] = [
 function NodesContent() {
   const network = useNetwork();
   const router = useRouter();
-  const { data: response, isLoading } = useNodes();
+  const { data: response, isLoading, isError } = useNodes();
   const nodes = (response?.data || []) as NodeRow[];
 
   return (
@@ -85,6 +86,10 @@ function NodesContent() {
       {isLoading ? (
         <div className="flex h-48 items-center justify-center text-text-muted">
           Loading nodes...
+        </div>
+      ) : isError ? (
+        <div className="flex h-48 items-center justify-center text-text-muted">
+          Failed to load nodes
         </div>
       ) : (
         <DataTable

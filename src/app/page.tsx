@@ -18,29 +18,23 @@ import {
 import { ComputationGrid, PHASE_COLORS } from "@/components/shared/computation-grid";
 import { ThroughputChart } from "@/components/shared/throughput-chart";
 import { LiveFeed } from "@/components/shared/live-feed";
-import type { SharedComputation } from "@/components/shared/computation-types";
 
 const PAGE_SIZE = 20;
 
 function DashboardContent() {
   const network = useNetwork();
-  const { data: statsResponse, isLoading } = useStats();
+  const { data: statsResponse, isLoading, isError } = useStats();
   const { data: historyResponse } = useStatsHistory(50);
-  const stats = statsResponse?.data as Record<string, number> | undefined;
-  const history = (historyResponse?.data || []) as Array<{
-    timestamp: string;
-    totalComputations: number;
-    computationsPerMin: number;
-    activeNodes: number;
-  }>;
+  const stats = statsResponse?.data;
+  const history = historyResponse?.data ?? [];
 
   // Shared state: pagination + hover
   const [page, setPage] = useState(1);
   const [highlightedAddress, setHighlightedAddress] = useState<string | null>(null);
 
   const { data: compResponse } = useComputations(page, PAGE_SIZE);
-  const computations = (compResponse?.data || []) as SharedComputation[];
-  const total = (compResponse?.meta?.total as number) || 0;
+  const computations = compResponse?.data ?? [];
+  const total = compResponse?.meta?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
   const handleHover = useCallback((address: string | null) => {
@@ -64,37 +58,37 @@ function DashboardContent() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
         <MetricCard
           label="Clusters"
-          value={isLoading ? "..." : formatNumber(stats?.totalClusters || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.totalClusters || 0)}
           icon={Layers}
           href={`/clusters?network=${network}`}
         />
         <MetricCard
           label="Active Nodes"
-          value={isLoading ? "..." : formatNumber(stats?.activeNodes || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.activeNodes || 0)}
           icon={Server}
           href={`/nodes?network=${network}&active=true`}
         />
         <MetricCard
           label="Computations"
-          value={isLoading ? "..." : formatNumber(stats?.totalComputations || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.totalComputations || 0)}
           icon={Cpu}
           href={`/computations?network=${network}`}
         />
         <MetricCard
           label="Queued"
-          value={isLoading ? "..." : formatNumber(stats?.queuedComputations || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.queuedComputations || 0)}
           icon={Activity}
           href={`/computations?network=${network}&status=queued`}
         />
         <MetricCard
           label="Programs"
-          value={isLoading ? "..." : formatNumber(stats?.totalPrograms || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.totalPrograms || 0)}
           icon={Code}
           href={`/programs?network=${network}`}
         />
         <MetricCard
           label="MXEs"
-          value={isLoading ? "..." : formatNumber(stats?.totalMxes || 0)}
+          value={isLoading ? "\u2026" : formatNumber(stats?.totalMxes || 0)}
           icon={Shield}
           href={`/mxes?network=${network}`}
         />

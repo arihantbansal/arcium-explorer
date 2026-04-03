@@ -338,7 +338,7 @@ CREATE TYPE computation_status AS ENUM ('queued', 'executing', 'finalized', 'fai
 |--------|------|-------|
 | id | serial PK | |
 | address | varchar(64) | |
-| computationOffset | varchar(32) | Stringified offset |
+| compDefOffset | varchar(32) | computation_definition_offset from on-chain account |
 | clusterOffset | bigint | |
 | payer | varchar(64) | Who paid for the computation |
 | mxeProgramId | varchar(64) | |
@@ -568,7 +568,7 @@ circuit_source               enum(u8): 0=local, 1=onchain, 2=offchain
 Skip 8 bytes
 payer                        pubkey
 mxe_program_id               pubkey
-computation_definition_offset u32         → computationOffset
+computation_definition_offset u32         → compDefOffset
 execution_fee                {base u64, priority u64, delivery u64} (skipped)
 slot                         u64          → resolved to queuedAt via getBlockTime()
 slot_counter                 u16          (skipped)
@@ -585,7 +585,7 @@ File: `src/lib/solana/pda.ts`
 |----------|-------|---------|
 | `getClusterAddress(offset)` | `["Cluster", u32(offset)]` | Cluster PDA |
 | `getMempoolAddress(clusterOffset)` | `["Mempool", u32(offset)]` | Mempool PDA |
-| `getExecutingPoolAddress(clusterOffset)` | `["ExecutingPool", u32(offset)]` | ExecutingPool PDA |
+| `getExecutingPoolAddress(clusterOffset)` | `["Execpool", u32(offset)]` | ExecutingPool PDA |
 | `getMXEAddress(programId)` | `["MXEAccount", programId]` | MXE PDA |
 | `getCompDefAddress(programId, defOffset)` | `["ComputationDefinitionAccount", programId, u32(offset)]` | CompDef PDA |
 | `getComputationAddress(clusterOffset, compOffset)` | `["ComputationAccount", u32(cluster), u64(comp)]` | Computation PDA |
@@ -960,7 +960,7 @@ interface ComputationDefinition {
 }
 
 interface Computation {
-  address, computationOffset, clusterOffset, payer, mxeProgramId,
+  address, compDefOffset, clusterOffset, payer, mxeProgramId,
   status: ComputationStatus, isScaffold,
   queuedAt, executingAt, finalizedAt, failedAt,
   queueTxSig, finalizeTxSig,

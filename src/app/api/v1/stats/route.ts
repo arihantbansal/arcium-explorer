@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
-import { getNetwork, errorResponse } from "@/lib/api-helpers";
+import { getNetwork, handleApiError } from "@/lib/api-helpers";
+
+interface CompStats { total: number; queued: number; executing: number; finalized: number }
+interface MetaStats { clusters: number; nodes: number; active_nodes: number; programs: number; mxes: number }
 
 export const dynamic = "force-dynamic";
 
@@ -31,8 +34,8 @@ export async function GET(req: NextRequest) {
         (SELECT count(*) FROM mxe_accounts WHERE network = ${network}) AS mxes
     `);
 
-    const comp = compRows[0] as Record<string, number>;
-    const meta = metaRows[0] as Record<string, number>;
+    const comp = compRows[0] as unknown as CompStats;
+    const meta = metaRows[0] as unknown as MetaStats;
 
     return NextResponse.json(
       {
@@ -56,9 +59,6 @@ export async function GET(req: NextRequest) {
       }
     );
   } catch (error) {
-    console.error("Stats API error:", error);
-    return errorResponse(
-      error instanceof Error ? error.message : "Failed to fetch stats"
-    );
+    return handleApiError(error, "Failed to fetch stats");
   }
 }
