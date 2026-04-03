@@ -24,11 +24,11 @@ export const ARCIUM_PROGRAM = new PublicKey(ARCIUM_ADDR);
 // ─── Discriminator helpers ─────────────────────────────────────
 
 export const ACCOUNT_NAMES = {
-  Cluster: "cluster",
-  ArxNode: "arxNode",
-  MXEAccount: "mxeAccount",
-  ComputationDefinitionAccount: "computationDefinitionAccount",
-  ComputationAccount: "computationAccount",
+  Cluster: "Cluster",
+  ArxNode: "ArxNode",
+  MXEAccount: "MXEAccount",
+  ComputationDefinitionAccount: "ComputationDefinitionAccount",
+  ComputationAccount: "ComputationAccount",
 } as const;
 
 export type AccountTypeName = keyof typeof ACCOUNT_NAMES;
@@ -94,7 +94,7 @@ export interface ParsedArxNode {
 
 export function decodeArxNode(data: Buffer | Uint8Array): ParsedArxNode | null {
   try {
-    const decoded = coder.decode("arxNode", Buffer.from(data));
+    const decoded = coder.decode("ArxNode", Buffer.from(data));
 
     // x25519Pubkey: number[32]
     const x25519PublicKey = bytesToHex(decoded.x25519Pubkey);
@@ -151,7 +151,7 @@ export interface ParsedCluster {
 
 export function decodeCluster(data: Buffer | Uint8Array): ParsedCluster | null {
   try {
-    const decoded = coder.decode("cluster", Buffer.from(data));
+    const decoded = coder.decode("Cluster", Buffer.from(data));
 
     const clusterSize: number = decoded.clusterSize;
 
@@ -210,7 +210,7 @@ export function decodeMXEAccount(
   data: Buffer | Uint8Array,
 ): ParsedMXEAccount | null {
   try {
-    const decoded = coder.decode("mxeAccount", Buffer.from(data));
+    const decoded = coder.decode("MXEAccount", Buffer.from(data));
 
     const mxeProgramId = pubkeyToBase58(decoded.mxeProgramId);
 
@@ -257,7 +257,7 @@ export function decodeComputationDefinition(
 ): ParsedComputationDefinition | null {
   try {
     const decoded = coder.decode(
-      "computationDefinitionAccount",
+      "ComputationDefinitionAccount",
       Buffer.from(data),
     );
 
@@ -303,7 +303,7 @@ export function decodeComputation(
   data: Buffer | Uint8Array,
 ): ParsedComputation | null {
   try {
-    const decoded = coder.decode("computationAccount", Buffer.from(data));
+    const decoded = coder.decode("ComputationAccount", Buffer.from(data));
 
     const payer = pubkeyToBase58(decoded.payer);
     const mxeProgramId = pubkeyToBase58(decoded.mxeProgramId);
