@@ -3,9 +3,9 @@
 import { useRef, useEffect, useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { useNetwork } from "@/lib/hooks/use-network";
-import { truncateAddress, timeAgo, formatTimestamp } from "@/lib/utils";
+import { truncateAddress, timeAgo } from "@/lib/utils";
 import { cn } from "@/lib/utils";
-import { UNENRICHABLE_SENTINEL, getArciumError } from "@/lib/arcium-errors";
+import { UNENRICHABLE_SENTINEL } from "@/lib/arcium-errors";
 import type { SharedComputation } from "./computation-types";
 
 // Phase colors — reference CSS variables so theme changes propagate
@@ -36,12 +36,6 @@ export const ComputationGrid = memo(function ComputationGrid({
   const router = useRouter();
   const network = useNetwork();
   const [containerWidth, setContainerWidth] = useState(0);
-  const [tooltip, setTooltip] = useState<{
-    x: number;
-    y: number;
-    tile: SharedComputation;
-  } | null>(null);
-
   useEffect(() => {
     const wrapper = wrapperRef.current;
     if (!wrapper) return;
@@ -69,21 +63,13 @@ export const ComputationGrid = memo(function ComputationGrid({
   );
 
   const handleMouseEnter = useCallback(
-    (e: React.MouseEvent, tile: SharedComputation) => {
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      if (!rect) return;
-      setTooltip({
-        x: e.clientX - rect.left,
-        y: e.clientY - rect.top,
-        tile,
-      });
+    (_e: React.MouseEvent, tile: SharedComputation) => {
       onHover(tile.address);
     },
     [onHover]
   );
 
   const handleMouseLeave = useCallback(() => {
-    setTooltip(null);
     onHover(null);
   }, [onHover]);
 
@@ -175,23 +161,34 @@ export const ComputationGrid = memo(function ComputationGrid({
                   </span>
                 </div>
               </div>
-              {/* Q/C phase arrows — link to Solscan tx when sig available */}
-              <div className="flex items-center justify-center gap-5 pb-3 pt-1">
+              {/* Q/C phase indicators — link to Solscan tx when sig available */}
+              <div className="flex items-center justify-center gap-4 pb-3 pt-1">
                 {(() => {
                   const queueUrl = tile.queueTxSig
                     ? `https://solscan.io/tx/${tile.queueTxSig}${network === "devnet" ? "?cluster=devnet" : ""}`
                     : null;
                   const Tag = queueUrl ? "a" : "span";
                   const linkProps = queueUrl
-                    ? { href: queueUrl, target: "_blank", rel: "noopener noreferrer", title: "View queue TX on Solscan", onClick: (e: React.MouseEvent) => e.stopPropagation() }
+                    ? { href: queueUrl, target: "_blank", rel: "noopener noreferrer", onClick: (e: React.MouseEvent) => e.stopPropagation() }
                     : {};
                   return (
                     <Tag
                       {...linkProps}
-                      className={cn("text-3xl font-black leading-none", queueUrl && "hover:brightness-125 transition-[filter]")}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-[filter,box-shadow]"
                       style={{ color: PHASE_COLORS.queued }}
+                      onMouseEnter={(e) => {
+                        if (queueUrl) {
+                          (e.currentTarget as HTMLElement).style.boxShadow = "0 0 8px var(--status-queued)";
+                          (e.currentTarget as HTMLElement).style.filter = "brightness(1.25)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = "";
+                        (e.currentTarget as HTMLElement).style.filter = "";
+                      }}
                     >
-                      ↑
+                      <span className="text-[10px] font-semibold">Queue</span>
+                      <span className="text-xl font-black leading-none">↑</span>
                     </Tag>
                   );
                 })()}
@@ -199,23 +196,39 @@ export const ComputationGrid = memo(function ComputationGrid({
                   const callbackColor = hasCallback
                     ? hasError ? PHASE_COLORS.callbackError : PHASE_COLORS.callbackOk
                     : PHASE_COLORS.pending;
+                  const glowColor = hasCallback
+                    ? hasError ? "var(--status-failed)" : "var(--status-finalized)"
+                    : null;
                   const callbackUrl = tile.finalizeTxSig
                     ? `https://solscan.io/tx/${tile.finalizeTxSig}${network === "devnet" ? "?cluster=devnet" : ""}`
                     : null;
                   const Tag = callbackUrl ? "a" : "span";
                   const linkProps = callbackUrl
-                    ? { href: callbackUrl, target: "_blank", rel: "noopener noreferrer", title: "View callback TX on Solscan", onClick: (e: React.MouseEvent) => e.stopPropagation() }
+                    ? { href: callbackUrl, target: "_blank", rel: "noopener noreferrer", onClick: (e: React.MouseEvent) => e.stopPropagation() }
                     : {};
                   return (
                     <Tag
                       {...linkProps}
-                      className={cn("text-3xl font-black leading-none", callbackUrl && "hover:brightness-125 transition-[filter]")}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-[filter,box-shadow]"
                       style={{
                         color: callbackColor,
                         opacity: hasCallback ? 1 : 0.4,
                       }}
+                      onMouseEnter={(e) => {
+                        if (callbackUrl && glowColor) {
+                          (e.currentTarget as HTMLElement).style.boxShadow = `0 0 8px ${glowColor}`;
+                          (e.currentTarget as HTMLElement).style.filter = "brightness(1.25)";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        (e.currentTarget as HTMLElement).style.boxShadow = "";
+                        (e.currentTarget as HTMLElement).style.filter = "";
+                      }}
                     >
-                      {hasError ? "!" : "↓"}
+                      <span className="text-xl font-black leading-none">
+                        {hasError ? "!" : "↓"}
+                      </span>
+                      <span className="text-[10px] font-semibold">Callback</span>
                     </Tag>
                   );
                 })()}
@@ -225,65 +238,6 @@ export const ComputationGrid = memo(function ComputationGrid({
         })}
       </div>
 
-      {tooltip && <GridTooltip data={tooltip} />}
     </div>
   );
 });
-
-function GridTooltip({
-  data,
-}: {
-  data: { x: number; y: number; tile: SharedComputation };
-}) {
-  const { tile, x, y } = data;
-  const hasCallback =
-    tile.status === "finalized" || tile.status === "failed";
-  const hasError =
-    tile.callbackErrorCode !== null && tile.callbackErrorCode > 0;
-
-  return (
-    <div
-      className="pointer-events-none absolute z-50 max-w-xs rounded-md border border-border-primary bg-bg-elevated px-3 py-2 text-xs shadow-lg"
-      style={{
-        left: x,
-        top: y - 8,
-        transform: "translate(-50%, -100%)",
-      }}
-    >
-      <div className="font-mono text-text-primary">
-        {tile.address.slice(0, 8)}...{tile.address.slice(-4)}
-      </div>
-      <div className="mt-1 space-y-0.5 text-text-secondary">
-        <div className="flex items-center gap-1.5">
-          <span style={{ color: PHASE_COLORS.queued }}>↑ Q:</span>
-          <span>
-            Queued
-            {tile.queuedAt
-              ? ` \u00b7 ${formatTimestamp(tile.queuedAt)}`
-              : ""}
-          </span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span
-            style={{
-              color: hasCallback
-                ? hasError
-                  ? PHASE_COLORS.callbackError
-                  : PHASE_COLORS.callbackOk
-                : PHASE_COLORS.pending,
-            }}
-          >
-            {hasCallback ? (hasError ? "! C:" : "↓ C:") : "↓ C:"}
-          </span>
-          <span>
-            {!hasCallback
-              ? "Pending"
-              : hasError
-              ? `Callback error: ${getArciumError(tile.callbackErrorCode!)?.name ?? tile.callbackErrorCode}`
-              : `OK${tile.finalizedAt ? ` \u00b7 ${formatTimestamp(tile.finalizedAt)}` : ""}`}
-          </span>
-        </div>
-      </div>
-    </div>
-  );
-}
