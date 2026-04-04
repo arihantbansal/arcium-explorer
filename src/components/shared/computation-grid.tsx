@@ -152,17 +152,20 @@ export const ComputationGrid = memo(function ComputationGrid({
                     {timestamp ? timeAgo(timestamp) : "—"}
                   </span>
                 </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-[10px] text-text-muted">
-                    Def #{tile.compDefOffset}
+                <div className="flex items-baseline justify-between gap-1">
+                  <span className="text-[10px] text-text-muted break-all">
+                    Def
                   </span>
                   <span className="text-[10px] capitalize text-text-secondary">
                     {tile.status}
                   </span>
                 </div>
+                <div className="text-[10px] text-text-muted font-mono break-all">
+                  #{tile.compDefOffset}
+                </div>
               </div>
               {/* Q/C phase indicators — link to Solscan tx when sig available */}
-              <div className="flex items-center justify-center gap-4 pb-3 pt-1">
+              <div className="flex items-center justify-evenly pb-3 pt-1">
                 {(() => {
                   const queueUrl = tile.queueTxSig
                     ? `https://solscan.io/tx/${tile.queueTxSig}${network === "devnet" ? "?cluster=devnet" : ""}`
