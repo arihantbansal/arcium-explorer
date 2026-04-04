@@ -94,34 +94,29 @@ export interface ParsedArxNode {
 
 export function decodeArxNode(data: Buffer | Uint8Array): ParsedArxNode | null {
   try {
-    const decoded = coder.decode("ArxNode", Buffer.from(data));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decoded: any = coder.decode("ArxNode", Buffer.from(data));
 
-    // x25519Pubkey: number[32]
-    const x25519PublicKey = bytesToHex(decoded.x25519Pubkey);
-
-    // config.authority: PublicKey
+    const x25519PublicKey = bytesToHex(decoded.x25519_pubkey);
     const authorityKey = pubkeyToBase58(decoded.config.authority);
 
-    // metadata.ip: number[4]
     const ipBytes: number[] = decoded.metadata.ip;
     const ipStr = `${ipBytes[0]}.${ipBytes[1]}.${ipBytes[2]}.${ipBytes[3]}`;
     const ip = ipStr === "0.0.0.0" ? null : ipStr;
 
-    // clusterMembership: Anchor enum { inactive: {}, active: number, proposed: number }
+    // cluster_membership: Anchor enum { Inactive: {}, Active: number, Proposed: number }
     let clusterOffset: number | null = null;
     let isActive = false;
-    if (decoded.clusterMembership.active !== undefined) {
-      clusterOffset = decoded.clusterMembership.active;
+    const membership = decoded.cluster_membership;
+    if (membership.Active !== undefined) {
+      clusterOffset = membership.Active;
       isActive = true;
-    } else if (decoded.clusterMembership.proposed !== undefined) {
-      clusterOffset = decoded.clusterMembership.proposed;
+    } else if (membership.Proposed !== undefined) {
+      clusterOffset = membership.Proposed;
     }
 
-    // cuCapacityClaim: BN
-    const cuCapacityClaim = bnToNumber(decoded.cuCapacityClaim);
-
-    // blsPubkey: BN254G2BLSPublicKey — Anchor deserializes unnamed struct field as array
-    const blsPublicKey = bytesToHex(decoded.blsPubkey[0] ?? decoded.blsPubkey);
+    const cuCapacityClaim = bnToNumber(decoded.cu_capacity_claim);
+    const blsPublicKey = bytesToHex(decoded.bls_pubkey[0] ?? decoded.bls_pubkey);
 
     return {
       authorityKey,
@@ -151,20 +146,19 @@ export interface ParsedCluster {
 
 export function decodeCluster(data: Buffer | Uint8Array): ParsedCluster | null {
   try {
-    const decoded = coder.decode("Cluster", Buffer.from(data));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decoded: any = coder.decode("Cluster", Buffer.from(data));
 
-    const clusterSize: number = decoded.clusterSize;
+    const clusterSize: number = decoded.cluster_size;
+    const maxCapacity = bnToNumber(decoded.max_capacity);
+    const cuPrice = bnToNumber(decoded.cu_price);
 
-    const maxCapacity = bnToNumber(decoded.maxCapacity);
-    const cuPrice = bnToNumber(decoded.cuPrice);
-
-    // activation: { activationEpoch: BN, deactivationEpoch: BN }
-    // Active if activationEpoch !== U64_MAX
+    // activation: { activation_epoch: BN, deactivation_epoch: BN }
     const U64_MAX_STR = "18446744073709551615";
-    const activationEpoch = decoded.activation.activationEpoch.toString();
+    const activationEpoch = decoded.activation.activation_epoch.toString();
     const isActive = activationEpoch !== U64_MAX_STR;
 
-    // nodes: Vec<NodeRef { offset: u32, currentTotalRewards: BN, vote: u8 }>
+    // nodes: Vec<NodeRef { offset: u32, current_total_rewards: BN, vote: u8 }>
     const nodeOffsets: number[] = [];
     if (Array.isArray(decoded.nodes)) {
       for (const node of decoded.nodes) {
@@ -172,12 +166,11 @@ export function decodeCluster(data: Buffer | Uint8Array): ParsedCluster | null {
       }
     }
 
-    // blsPublicKey: SetUnset<BN254G2BLSPublicKey>
-    // Anchor enum: { set: value } or { unset: [value, bool[]] }
+    // bls_public_key: SetUnset<BN254G2BLSPublicKey>
+    // Anchor enum: { Set: value } or { Unset: [value, bool[]] }
     let blsPublicKey: string | null = null;
-    if (decoded.blsPublicKey.set) {
-      const inner = decoded.blsPublicKey.set;
-      // BN254G2BLSPublicKey may be { 0: number[64] } or number[64] directly
+    if (decoded.bls_public_key.Set) {
+      const inner = decoded.bls_public_key.Set;
       const bytes = inner[0] ?? inner;
       blsPublicKey = bytesToHex(bytes);
     }
@@ -210,11 +203,12 @@ export function decodeMXEAccount(
   data: Buffer | Uint8Array,
 ): ParsedMXEAccount | null {
   try {
-    const decoded = coder.decode("MXEAccount", Buffer.from(data));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decoded: any = coder.decode("MXEAccount", Buffer.from(data));
 
-    const mxeProgramId = pubkeyToBase58(decoded.mxeProgramId);
+    const mxeProgramId = pubkeyToBase58(decoded.mxe_program_id);
 
-    // cluster: Option<u32> — Anchor deserializes as number | null
+    // cluster: Option<u32>
     const clusterOffset: number | null = decoded.cluster ?? null;
 
     // authority: Option<pubkey>
@@ -222,14 +216,15 @@ export function decodeMXEAccount(
       ? pubkeyToBase58(decoded.authority)
       : null;
 
-    // utilityPubkeys: SetUnset<UtilityPubkeys>
+    // utility_pubkeys: SetUnset<UtilityPubkeys>
     let x25519Pubkey: string | null = null;
-    if (decoded.utilityPubkeys.set) {
-      x25519Pubkey = bytesToHex(decoded.utilityPubkeys.set.x25519Pubkey);
+    const utilPubkeys = decoded.utility_pubkeys;
+    if (utilPubkeys.Set) {
+      x25519Pubkey = bytesToHex(utilPubkeys.Set.x25519_pubkey);
     }
 
-    // computationDefinitions: Vec<u32>
-    const compDefOffsets: number[] = decoded.computationDefinitions ?? [];
+    // computation_definitions: Vec<u32>
+    const compDefOffsets: number[] = decoded.computation_definitions ?? [];
 
     return {
       mxeProgramId,
@@ -256,21 +251,23 @@ export function decodeComputationDefinition(
   data: Buffer | Uint8Array,
 ): ParsedComputationDefinition | null {
   try {
-    const decoded = coder.decode(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decoded: any = coder.decode(
       "ComputationDefinitionAccount",
       Buffer.from(data),
     );
 
-    const cuAmount = bnToNumber(decoded.cuAmount);
-    const circuitLen = decoded.definition.circuitLen;
+    const cuAmount = bnToNumber(decoded.cu_amount);
+    const circuitLen = decoded.definition.circuit_len;
 
-    // circuitSource: Anchor enum { local: ..., onChain: ..., offChain: ... }
+    // circuit_source: Anchor enum { Local: ..., OnChain: ..., OffChain: ... }
     let sourceType = "unknown";
-    if (decoded.circuitSource.local !== undefined) {
+    const src = decoded.circuit_source;
+    if (src.Local !== undefined) {
       sourceType = "local";
-    } else if (decoded.circuitSource.onChain !== undefined) {
+    } else if (src.OnChain !== undefined) {
       sourceType = "onchain";
-    } else if (decoded.circuitSource.offChain !== undefined) {
+    } else if (src.OffChain !== undefined) {
       sourceType = "offchain";
     }
 
@@ -303,16 +300,17 @@ export function decodeComputation(
   data: Buffer | Uint8Array,
 ): ParsedComputation | null {
   try {
-    const decoded = coder.decode("ComputationAccount", Buffer.from(data));
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const decoded: any = coder.decode("ComputationAccount", Buffer.from(data));
 
     const payer = pubkeyToBase58(decoded.payer);
-    const mxeProgramId = pubkeyToBase58(decoded.mxeProgramId);
-    const compDefOffset = decoded.computationDefinitionOffset.toString();
+    const mxeProgramId = pubkeyToBase58(decoded.mxe_program_id);
+    const compDefOffset = decoded.computation_definition_offset.toString();
     const slot = bnToNumber(decoded.slot);
 
     // status: Anchor enum — only Queued and Finalized exist on-chain
     let status: ParsedComputation["status"] = "queued";
-    if (decoded.status.finalized !== undefined) {
+    if (decoded.status.Finalized !== undefined) {
       status = "finalized";
     }
 
